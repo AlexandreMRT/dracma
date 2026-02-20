@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  ticker: MyString
+  name: MyString
+  sector: MyString
+  asset_type: MyString
+  unit: MyString
+
+two:
+  ticker: MyString
+  name: MyString
+  sector: MyString
+  asset_type: MyString
+  unit: MyString

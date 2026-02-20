@@ -1,0 +1,11 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  asset: one
+  price_usd: 1.5
+  price_brl: 1.5
+
+two:
+  asset: two
+  price_usd: 1.5
+  price_brl: 1.5
