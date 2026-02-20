@@ -1,0 +1,30 @@
+<% content_for(:title) { "Portfolios — Dracma" } %>
+
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Portfolios</h1>
+    <%= link_to "New Portfolio", new_portfolio_path, class: "bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-sm" %>
+  </div>
+
+  <% if @portfolios.any? %>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <% @portfolios.each do |p| %>
+        <div class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600">
+          <%= link_to portfolio_path(p), class: "block" do %>
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-lg font-semibold text-white"><%= p.name %></h2>
+              <% if p.is_default %>
+                <span class="px-2 py-0.5 bg-emerald-900/50 text-emerald-300 rounded text-xs">Default</span>
+              <% end %>
+            </div>
+            <p class="text-gray-400 text-sm"><%= p.positions.count %> positions · <%= p.transactions.count %> transactions</p>
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="bg-gray-800 rounded-lg p-8 border border-gray-700 text-center text-gray-400">
+      No portfolios yet. Create one to start tracking your investments.
+    </div>
+  <% end %>
+</div>

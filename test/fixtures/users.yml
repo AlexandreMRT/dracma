@@ -1,15 +1,13 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+alice:
+  google_id: google_alice_123
+  email: alice@example.com
+  name: Alice
+  picture_url: https://example.com/alice.jpg
+  default_currency: BRL
 
-one:
-  google_id: MyString
-  email: MyString
-  name: MyString
-  picture_url: MyString
-  default_currency: MyString
-
-two:
-  google_id: MyString
-  email: MyString
-  name: MyString
-  picture_url: MyString
-  default_currency: MyString
+bob:
+  google_id: google_bob_456
+  email: bob@example.com
+  name: Bob
+  picture_url: https://example.com/bob.jpg
+  default_currency: USD

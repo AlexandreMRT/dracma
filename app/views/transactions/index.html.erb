@@ -1,0 +1,84 @@
+<% content_for(:title) { "Transactions — Dracma" } %>
+
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Transactions — <%= @portfolio.name %></h1>
+    <%= link_to "← Portfolio", portfolio_path(@portfolio), class: "text-gray-400 hover:text-white text-sm" %>
+  </div>
+
+  <%# Add transaction form %>
+  <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+    <h2 class="text-lg font-semibold mb-3">New Transaction</h2>
+    <%= form_with url: portfolio_transactions_path(@portfolio), method: :post, class: "grid grid-cols-2 md:grid-cols-6 gap-3 items-end" do |f| %>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Ticker</label>
+        <%= f.text_field "transaction[ticker]", class: "w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm uppercase", required: true %>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Type</label>
+        <%= f.select "transaction[transaction_type]", [["Buy", "buy"], ["Sell", "sell"], ["Dividend", "dividend"]], {}, class: "w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" %>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Quantity</label>
+        <%= f.number_field "transaction[quantity]", step: "0.01", min: "0.01", class: "w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm", required: true %>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Price (BRL)</label>
+        <%= f.number_field "transaction[price_brl]", step: "0.01", min: "0.01", class: "w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm", required: true %>
+      </div>
+      <div>
+        <label class="block text-xs text-gray-400 mb-1">Fees</label>
+        <%= f.number_field "transaction[fees_brl]", step: "0.01", value: "0.00", class: "w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" %>
+      </div>
+      <div>
+        <%= f.submit "Add", class: "w-full bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-sm cursor-pointer" %>
+      </div>
+    <% end %>
+  </div>
+
+  <%# Transactions list %>
+  <% if @transactions.any? %>
+    <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-gray-400 text-left">
+            <th class="px-4 py-2">Date</th>
+            <th class="px-4 py-2">Ticker</th>
+            <th class="px-4 py-2">Type</th>
+            <th class="px-4 py-2 text-right">Qty</th>
+            <th class="px-4 py-2 text-right">Price</th>
+            <th class="px-4 py-2 text-right">Fees</th>
+            <th class="px-4 py-2 text-right">Total</th>
+            <th class="px-4 py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @transactions.each do |txn| %>
+            <tr class="border-t border-gray-700">
+              <td class="px-4 py-2 text-gray-300"><%= txn.transaction_date.strftime("%Y-%m-%d") %></td>
+              <td class="px-4 py-2 font-mono text-emerald-400"><%= txn.ticker %></td>
+              <td class="px-4 py-2">
+                <span class="px-2 py-0.5 rounded text-xs <%= txn.transaction_type == 'buy' ? 'bg-emerald-900/50 text-emerald-300' : (txn.transaction_type == 'sell' ? 'bg-red-900/50 text-red-300' : 'bg-blue-900/50 text-blue-300') %>">
+                  <%= txn.transaction_type.capitalize %>
+                </span>
+              </td>
+              <td class="px-4 py-2 text-right text-white"><%= sprintf("%.2f", txn.quantity) %></td>
+              <td class="px-4 py-2 text-right text-gray-300">R$ <%= sprintf("%.2f", txn.price_brl) %></td>
+              <td class="px-4 py-2 text-right text-gray-400">R$ <%= sprintf("%.2f", txn.fees_brl) %></td>
+              <td class="px-4 py-2 text-right text-white">R$ <%= sprintf("%.2f", txn.total_brl) %></td>
+              <td class="px-4 py-2 text-right">
+                <%= button_to "×", portfolio_transaction_path(@portfolio, txn), method: :delete,
+                  class: "text-red-400 hover:text-red-300",
+                  data: { turbo_confirm: "Delete this transaction?" } %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="bg-gray-800 rounded-lg p-8 border border-gray-700 text-center text-gray-400">
+      No transactions yet.
+    </div>
+  <% end %>
+</div>

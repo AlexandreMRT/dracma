@@ -1,23 +1,19 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
-
-one:
-  portfolio: one
-  ticker: MyString
+alice_buy_petr4:
+  portfolio: alice_default
+  ticker: PETR4.SA
   transaction_type: 1
-  quantity: 1.5
-  price_brl: 1.5
-  total_brl: 1.5
-  fees_brl: 1.5
-  transaction_date: 2026-02-19 21:07:05
-  notes: MyText
+  quantity: 100.0
+  price_brl: 35.50
+  total_brl: 3550.00
+  fees_brl: 0.0
+  transaction_date: 2026-01-15
 
-two:
-  portfolio: two
-  ticker: MyString
+bob_buy_aapl:
+  portfolio: bob_default
+  ticker: AAPL
   transaction_type: 1
-  quantity: 1.5
-  price_brl: 1.5
-  total_brl: 1.5
-  fees_brl: 1.5
-  transaction_date: 2026-02-19 21:07:05
-  notes: MyText
+  quantity: 10.0
+  price_brl: 850.00
+  total_brl: 8500.00
+  fees_brl: 0.0
+  transaction_date: 2026-01-20

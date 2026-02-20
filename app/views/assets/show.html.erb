@@ -1,0 +1,117 @@
+<% content_for(:title) { "#{@asset.ticker} — Dracma" } %>
+
+<div class="space-y-6">
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-bold"><%= @asset.ticker %></h1>
+      <p class="text-gray-400"><%= @asset.name %> · <%= @asset.sector %> · <%= @asset.asset_type %></p>
+    </div>
+    <%= link_to "← Back", assets_path, class: "text-gray-400 hover:text-white text-sm" %>
+  </div>
+
+  <% if @row %>
+    <%# Price card %>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-gray-400 text-sm">Price (BRL)</p>
+        <p class="text-2xl font-bold text-white">R$ <%= sprintf("%.2f", @row[:preco_brl] || 0) %></p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-gray-400 text-sm">1D Change</p>
+        <% c = @row[:var_1d] %>
+        <p class="text-2xl font-bold <%= c && c >= 0 ? 'text-emerald-400' : 'text-red-400' %>">
+          <%= c ? sprintf("%+.2f%%", c) : "N/A" %>
+        </p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-gray-400 text-sm">YTD</p>
+        <% y = @row[:var_ytd] %>
+        <p class="text-2xl font-bold <%= y && y >= 0 ? 'text-emerald-400' : 'text-red-400' %>">
+          <%= y ? sprintf("%+.2f%%", y) : "N/A" %>
+        </p>
+      </div>
+      <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+        <p class="text-gray-400 text-sm">RSI (14)</p>
+        <% rsi = @row[:rsi_14] %>
+        <p class="text-2xl font-bold <%= rsi && rsi > 70 ? 'text-red-400' : (rsi && rsi < 30 ? 'text-emerald-400' : 'text-white') %>">
+          <%= rsi ? sprintf("%.0f", rsi) : "N/A" %>
+        </p>
+      </div>
+    </div>
+
+    <%# Fundamentals %>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <h2 class="text-lg font-semibold mb-3">Fundamentals</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div><span class="text-gray-400">P/E:</span> <span class="text-white"><%= @row[:pe_ratio] || "N/A" %></span></div>
+        <div><span class="text-gray-400">Forward P/E:</span> <span class="text-white"><%= @row[:forward_pe] || "N/A" %></span></div>
+        <div><span class="text-gray-400">P/B:</span> <span class="text-white"><%= @row[:pb_ratio] || "N/A" %></span></div>
+        <div><span class="text-gray-400">Dividend Yield:</span> <span class="text-white"><%= @row[:dividend_yield] ? sprintf("%.2f%%", @row[:dividend_yield]) : "N/A" %></span></div>
+        <div><span class="text-gray-400">EPS:</span> <span class="text-white"><%= @row[:eps] || "N/A" %></span></div>
+        <div><span class="text-gray-400">Beta:</span> <span class="text-white"><%= @row[:beta] || "N/A" %></span></div>
+        <div><span class="text-gray-400">Market Cap:</span> <span class="text-white"><%= @row[:market_cap] ? number_to_human(@row[:market_cap]) : "N/A" %></span></div>
+        <div><span class="text-gray-400">Analyst Rating:</span> <span class="text-white"><%= @row[:analyst_rating] || "N/A" %></span></div>
+      </div>
+    </div>
+
+    <%# Technicals %>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <h2 class="text-lg font-semibold mb-3">Technicals</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div><span class="text-gray-400">MA 50:</span> <span class="text-white"><%= @row[:ma_50] || "N/A" %></span> <span class="<%= @row[:above_ma_50] == 1 ? 'text-emerald-400' : 'text-red-400' %>"><%= @row[:above_ma_50] == 1 ? "Above" : "Below" %></span></div>
+        <div><span class="text-gray-400">MA 200:</span> <span class="text-white"><%= @row[:ma_200] || "N/A" %></span> <span class="<%= @row[:above_ma_200] == 1 ? 'text-emerald-400' : 'text-red-400' %>"><%= @row[:above_ma_200] == 1 ? "Above" : "Below" %></span></div>
+        <div><span class="text-gray-400">52W High:</span> <span class="text-white"><%= @row[:week_52_high] || "N/A" %></span></div>
+        <div><span class="text-gray-400">52W Low:</span> <span class="text-white"><%= @row[:week_52_low] || "N/A" %></span></div>
+        <div><span class="text-gray-400">Signal:</span> <span class="<%= @row[:signal_summary] == 'bullish' ? 'text-emerald-400' : (@row[:signal_summary] == 'bearish' ? 'text-red-400' : 'text-gray-400') %>"><%= (@row[:signal_summary] || "neutral").capitalize %></span></div>
+        <div><span class="text-gray-400">Volatility 30D:</span> <span class="text-white"><%= @row[:volatility_30d] ? sprintf("%.2f%%", @row[:volatility_30d]) : "N/A" %></span></div>
+        <div><span class="text-gray-400">Volume Ratio:</span> <span class="text-white"><%= @row[:volume_ratio] ? sprintf("%.1fx", @row[:volume_ratio]) : "N/A" %></span></div>
+        <div><span class="text-gray-400">News Sentiment:</span>
+          <% ns = @row[:news_sentiment_combined] %>
+          <span class="<%= ns && ns >= 0.2 ? 'text-emerald-400' : (ns && ns <= -0.2 ? 'text-red-400' : 'text-gray-400') %>"><%= ns ? sprintf("%+.2f", ns) : "N/A" %></span>
+        </div>
+      </div>
+    </div>
+
+    <%# Historical Changes %>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <h2 class="text-lg font-semibold mb-3">Historical Changes</h2>
+      <div class="grid grid-cols-3 md:grid-cols-6 gap-4 text-sm text-center">
+        <% { "1D" => :var_1d, "1W" => :var_1w, "1M" => :var_1m, "YTD" => :var_ytd, "5Y" => :var_5y, "ALL" => :var_all }.each do |label, key| %>
+          <div>
+            <p class="text-gray-400"><%= label %></p>
+            <% v = @row[key] %>
+            <p class="font-bold <%= v && v >= 0 ? 'text-emerald-400' : 'text-red-400' %>">
+              <%= v ? sprintf("%+.2f%%", v) : "N/A" %>
+            </p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  <% else %>
+    <div class="bg-gray-800 rounded-lg p-8 border border-gray-700 text-center text-gray-400">
+      No quote data available for this asset.
+    </div>
+  <% end %>
+
+  <%# Quote history %>
+  <% if @quotes.any? %>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <h2 class="text-lg font-semibold mb-3">Recent Quotes</h2>
+      <table class="w-full text-sm">
+        <thead><tr class="text-gray-400 text-left"><th class="px-2 py-1">Date</th><th class="px-2 py-1 text-right">Close</th><th class="px-2 py-1 text-right">Open</th><th class="px-2 py-1 text-right">High</th><th class="px-2 py-1 text-right">Low</th><th class="px-2 py-1 text-right">Volume</th></tr></thead>
+        <tbody>
+          <% @quotes.each do |q| %>
+            <tr class="border-t border-gray-700">
+              <td class="px-2 py-1 text-gray-300"><%= q.quote_date.strftime("%Y-%m-%d") %></td>
+              <td class="px-2 py-1 text-right text-white"><%= sprintf("%.2f", q.price_brl) %></td>
+              <td class="px-2 py-1 text-right text-gray-400"><%= q.open_price ? sprintf("%.2f", q.open_price) : "-" %></td>
+              <td class="px-2 py-1 text-right text-gray-400"><%= q.high_price ? sprintf("%.2f", q.high_price) : "-" %></td>
+              <td class="px-2 py-1 text-right text-gray-400"><%= q.low_price ? sprintf("%.2f", q.low_price) : "-" %></td>
+              <td class="px-2 py-1 text-right text-gray-400"><%= q.volume ? number_to_human(q.volume) : "-" %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+</div>

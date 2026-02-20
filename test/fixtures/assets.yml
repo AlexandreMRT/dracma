@@ -1,15 +1,13 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+petr4:
+  ticker: PETR4.SA
+  name: Petrobras
+  sector: energy
+  asset_type: stock
+  unit: ""
 
-one:
-  ticker: MyString
-  name: MyString
-  sector: MyString
-  asset_type: MyString
-  unit: MyString
-
-two:
-  ticker: MyString
-  name: MyString
-  sector: MyString
-  asset_type: MyString
-  unit: MyString
+aapl:
+  ticker: AAPL
+  name: Apple
+  sector: technology
+  asset_type: us_stock
+  unit: ""

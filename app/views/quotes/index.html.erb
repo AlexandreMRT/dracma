@@ -1,0 +1,52 @@
+<% content_for(:title) { "Quotes — Dracma" } %>
+
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Quotes</h1>
+    <form class="flex gap-2 items-center">
+      <input type="date" name="date" value="<%= @date %>" class="bg-gray-700 border border-gray-600 text-white rounded px-3 py-1 text-sm">
+      <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-sm">Filter</button>
+    </form>
+  </div>
+
+  <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-x-auto">
+    <table class="w-full text-sm whitespace-nowrap">
+      <thead>
+        <tr class="text-gray-400 text-left bg-gray-800/80">
+          <th class="px-3 py-2">Ticker</th>
+          <th class="px-3 py-2">Name</th>
+          <th class="px-3 py-2 text-right">BRL</th>
+          <th class="px-3 py-2 text-right">1D</th>
+          <th class="px-3 py-2 text-right">1W</th>
+          <th class="px-3 py-2 text-right">1M</th>
+          <th class="px-3 py-2 text-right">YTD</th>
+          <th class="px-3 py-2 text-right">RSI</th>
+          <th class="px-3 py-2">Signal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @rows.each do |r| %>
+          <tr class="border-t border-gray-700 hover:bg-gray-700/50">
+            <td class="px-3 py-1 font-mono text-emerald-400"><%= r[:ticker] %></td>
+            <td class="px-3 py-1 text-white"><%= r[:nome].truncate(20) %></td>
+            <td class="px-3 py-1 text-right text-white"><%= sprintf("%.2f", r[:preco_brl] || 0) %></td>
+            <% %i[var_1d var_1w var_1m var_ytd].each do |key| %>
+              <% v = r[key] %>
+              <td class="px-3 py-1 text-right <%= v && v >= 0 ? 'text-emerald-400' : 'text-red-400' %>">
+                <%= v ? sprintf("%+.1f%%", v) : "-" %>
+              </td>
+            <% end %>
+            <td class="px-3 py-1 text-right"><%= r[:rsi_14] ? sprintf("%.0f", r[:rsi_14]) : "-" %></td>
+            <td class="px-3 py-1">
+              <% sig = r[:signal_summary] %>
+              <span class="px-2 py-0.5 rounded text-xs <%= sig == 'bullish' ? 'bg-emerald-900/50 text-emerald-300' : (sig == 'bearish' ? 'bg-red-900/50 text-red-300' : 'bg-gray-700 text-gray-400') %>">
+                <%= (sig || "neutral").capitalize %>
+              </span>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <p class="text-gray-500 text-sm"><%= @rows.size %> assets</p>
+</div>

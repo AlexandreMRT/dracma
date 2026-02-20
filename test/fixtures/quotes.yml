@@ -1,11 +1,30 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+petr4_today:
+  asset: petr4
+  price_brl: 38.50
+  price_usd: 6.50
+  open_price: 37.90
+  high_price: 39.00
+  low_price: 37.50
+  volume: 45000000
+  change_1d: 1.58
+  change_ytd: 8.45
+  rsi_14: 55.3
+  signal_summary: neutral
+  quote_date: 2026-02-10
+  fetched_at: 2026-02-10 18:00:00
 
-one:
-  asset: one
-  price_usd: 1.5
-  price_brl: 1.5
-
-two:
-  asset: two
-  price_usd: 1.5
-  price_brl: 1.5
+aapl_today:
+  asset: aapl
+  price_brl: 920.00
+  price_usd: 155.00
+  open_price: 915.00
+  high_price: 925.00
+  low_price: 910.00
+  volume: 80000000
+  change_1d: -0.54
+  change_ytd: 12.30
+  rsi_14: 62.1
+  signal_summary: bullish
+  signal_golden_cross: 1
+  quote_date: 2026-02-10
+  fetched_at: 2026-02-10 18:00:00

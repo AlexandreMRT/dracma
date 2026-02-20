@@ -1,0 +1,128 @@
+<% content_for(:title) { "Dashboard — Dracma" } %>
+
+<div class="space-y-8">
+  <%# Market Overview %>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <p class="text-gray-400 text-sm">IBOV YTD</p>
+      <p class="text-2xl font-bold <%= @ibov_ytd && @ibov_ytd >= 0 ? 'text-emerald-400' : 'text-red-400' %>">
+        <%= @ibov_ytd ? sprintf("%+.1f%%", @ibov_ytd) : "N/A" %>
+      </p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <p class="text-gray-400 text-sm">S&P 500 YTD</p>
+      <p class="text-2xl font-bold <%= @sp500_ytd && @sp500_ytd >= 0 ? 'text-emerald-400' : 'text-red-400' %>">
+        <%= @sp500_ytd ? sprintf("%+.1f%%", @sp500_ytd) : "N/A" %>
+      </p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <p class="text-gray-400 text-sm">USD/BRL</p>
+      <p class="text-2xl font-bold text-white">
+        R$ <%= @usd_brl ? sprintf("%.2f", @usd_brl) : "N/A" %>
+      </p>
+    </div>
+  </div>
+
+  <%# Top Movers %>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <h2 class="text-lg font-semibold text-emerald-400 mb-3">Top Gainers (1D)</h2>
+      <table class="w-full text-sm">
+        <thead><tr class="text-gray-400 text-left"><th>Ticker</th><th>Name</th><th class="text-right">Change</th></tr></thead>
+        <tbody>
+          <% @gainers.each do |r| %>
+            <tr class="border-t border-gray-700">
+              <td class="py-1 font-mono text-white"><%= r[:ticker] %></td>
+              <td class="py-1 text-gray-300"><%= r[:nome].truncate(18) %></td>
+              <td class="py-1 text-right text-emerald-400"><%= sprintf("%+.2f%%", r[:var_1d]) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <h2 class="text-lg font-semibold text-red-400 mb-3">Top Losers (1D)</h2>
+      <table class="w-full text-sm">
+        <thead><tr class="text-gray-400 text-left"><th>Ticker</th><th>Name</th><th class="text-right">Change</th></tr></thead>
+        <tbody>
+          <% @losers.each do |r| %>
+            <tr class="border-t border-gray-700">
+              <td class="py-1 font-mono text-white"><%= r[:ticker] %></td>
+              <td class="py-1 text-gray-300"><%= r[:nome].truncate(18) %></td>
+              <td class="py-1 text-right text-red-400"><%= sprintf("%+.2f%%", r[:var_1d]) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <%# Signals %>
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <h2 class="text-lg font-semibold text-emerald-400 mb-2">Bullish Signals (<%= @bullish.size %>)</h2>
+      <div class="flex flex-wrap gap-2">
+        <% @bullish.first(12).each do |r| %>
+          <span class="px-2 py-1 bg-emerald-900/50 text-emerald-300 rounded text-xs font-mono"><%= r[:ticker] %></span>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <h2 class="text-lg font-semibold text-red-400 mb-2">Bearish Signals (<%= @bearish.size %>)</h2>
+      <div class="flex flex-wrap gap-2">
+        <% @bearish.first(12).each do |r| %>
+          <span class="px-2 py-1 bg-red-900/50 text-red-300 rounded text-xs font-mono"><%= r[:ticker] %></span>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <%# Algorithmic Watchlist %>
+  <% wl = @watchlist_data[:watchlist] || [] %>
+  <% if wl.any? %>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <h2 class="text-lg font-semibold text-amber-400 mb-3">Algorithmic Watchlist</h2>
+      <p class="text-xs text-gray-500 mb-3">Not financial advice. Experimental scoring.</p>
+      <table class="w-full text-sm">
+        <thead><tr class="text-gray-400 text-left"><th>Ticker</th><th>Name</th><th class="text-right">Score</th><th class="text-right">RSI</th><th>Reasons</th></tr></thead>
+        <tbody>
+          <% wl.first(8).each do |r| %>
+            <tr class="border-t border-gray-700">
+              <td class="py-1 font-mono text-white"><%= r[:ticker] %></td>
+              <td class="py-1 text-gray-300"><%= (r[:nome] || "").truncate(16) %></td>
+              <td class="py-1 text-right text-amber-400"><%= sprintf("%.1f", r[:score]) %></td>
+              <td class="py-1 text-right"><%= r[:rsi_14] ? sprintf("%.0f", r[:rsi_14]) : "N/A" %></td>
+              <td class="py-1 text-gray-400 text-xs"><%= (r[:reasons] || []).first(3).join(", ") %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+
+  <%# Asset counts %>
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+    <div class="bg-gray-800 rounded p-3 border border-gray-700 text-center">
+      <p class="text-2xl font-bold text-white"><%= @br_stocks.size %></p>
+      <p class="text-xs text-gray-400">BR Stocks</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 border border-gray-700 text-center">
+      <p class="text-2xl font-bold text-white"><%= @us_stocks.size %></p>
+      <p class="text-xs text-gray-400">US Stocks</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 border border-gray-700 text-center">
+      <p class="text-2xl font-bold text-white"><%= @commodities.size %></p>
+      <p class="text-xs text-gray-400">Commodities</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 border border-gray-700 text-center">
+      <p class="text-2xl font-bold text-white"><%= @crypto.size %></p>
+      <p class="text-xs text-gray-400">Crypto</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 border border-gray-700 text-center">
+      <p class="text-2xl font-bold text-white"><%= @currency.size %></p>
+      <p class="text-xs text-gray-400">Currency</p>
+    </div>
+  </div>
+</div>

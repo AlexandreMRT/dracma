@@ -1,19 +1,11 @@
-# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+alice_petr4:
+  portfolio: alice_default
+  ticker: PETR4.SA
+  quantity: 100.0
+  avg_price_brl: 35.50
 
-one:
-  portfolio: one
-  ticker: MyString
-  quantity: 1.5
-  avg_price_brl: 1.5
-  first_purchase_date: 2026-02-19 21:06:50
-  last_transaction_date: 2026-02-19 21:06:50
-  notes: MyText
-
-two:
-  portfolio: two
-  ticker: MyString
-  quantity: 1.5
-  avg_price_brl: 1.5
-  first_purchase_date: 2026-02-19 21:06:50
-  last_transaction_date: 2026-02-19 21:06:50
-  notes: MyText
+bob_aapl:
+  portfolio: bob_default
+  ticker: AAPL
+  quantity: 10.0
+  avg_price_brl: 850.00

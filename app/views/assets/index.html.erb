@@ -1,0 +1,38 @@
+<% content_for(:title) { "Assets — Dracma" } %>
+
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-bold">Assets</h1>
+    <div class="flex gap-2">
+      <%= link_to "All", assets_path, class: "px-3 py-1 rounded text-sm #{params[:type].blank? ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300'}" %>
+      <% %w[stock us_stock commodity crypto currency].each do |t| %>
+        <%= link_to t.titleize, assets_path(type: t), class: "px-3 py-1 rounded text-sm #{params[:type] == t ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300'}" %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-gray-400 text-left bg-gray-800/80">
+          <th class="px-4 py-2">Ticker</th>
+          <th class="px-4 py-2">Name</th>
+          <th class="px-4 py-2">Sector</th>
+          <th class="px-4 py-2">Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @assets.each do |asset| %>
+          <tr class="border-t border-gray-700 hover:bg-gray-700/50">
+            <td class="px-4 py-2 font-mono text-emerald-400">
+              <%= link_to asset.ticker, asset_path(asset), class: "hover:underline" %>
+            </td>
+            <td class="px-4 py-2 text-white"><%= asset.name %></td>
+            <td class="px-4 py-2 text-gray-400"><%= asset.sector %></td>
+            <td class="px-4 py-2 text-gray-400"><%= asset.asset_type %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>
