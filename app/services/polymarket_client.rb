@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# typed: true
 
 require "net/http"
 require "json"
@@ -6,24 +7,27 @@ require "json"
 # Polymarket Gamma API client for prediction market sentiment.
 # Ported from Python polymarket.py.
 class PolymarketClient
+  extend T::Sig
+
   GAMMA_API = "https://gamma-api.polymarket.com"
 
   MARKET_KEYWORDS = {
     "BTC-USD" => %w[bitcoin btc],
     "ETH-USD" => %w[ethereum eth],
-    "MACRO_FED" => ["federal reserve", "fed rate", "interest rate", "fomc", "rate cut", "rate hike"],
+    "MACRO_FED" => [ "federal reserve", "fed rate", "interest rate", "fomc", "rate cut", "rate hike" ],
     "MACRO_RECESSION" => %w[recession economic\ downturn gdp],
     "MACRO_INFLATION" => %w[inflation cpi consumer\ price],
     "MACRO_BRAZIL" => %w[brazil lula brazilian],
-    "GC=F" => ["gold price", "gold spot"],
-    "CL=F" => ["oil price", "crude oil", "wti", "brent"],
+    "GC=F" => [ "gold price", "gold spot" ],
+    "CL=F" => [ "oil price", "crude oil", "wti", "brent" ],
     "SECTOR_TECH" => %w[nvidia apple microsoft google meta ai\ stocks tech\ stocks],
-    "GEOPOLITICS" => %w[china taiwan russia ukraine trade\ war tariff],
+    "GEOPOLITICS" => %w[china taiwan russia ukraine trade\ war tariff]
   }.freeze
 
   RELEVANT_CATEGORIES = %w[economics crypto business politics].freeze
 
   # Fetch markets from the Gamma API.
+  sig { params(limit: Integer, active: T::Boolean, closed: T::Boolean, category: T.nilable(String)).returns(T::Array[T.untyped]) }
   def self.fetch_markets(limit: 100, active: true, closed: false, category: nil)
     params = { limit: limit, active: active.to_s, closed: closed.to_s, order: "volume24hr", ascending: "false" }
     params[:category] = category if category
@@ -41,12 +45,14 @@ class PolymarketClient
   end
 
   # Match a market question to tracked asset keys.
+  sig { params(question: String, description: String).returns(T::Array[String]) }
   def self.match(question, description = "")
     text = "#{question} #{description}".downcase
     MARKET_KEYWORDS.select { |_, keywords| keywords.any? { |kw| text.include?(kw) } }.keys
   end
 
   # Calculate sentiment from a single market.
+  sig { params(market: T::Hash[String, T.untyped]).returns(T::Hash[Symbol, T.untyped]) }
   def self.sentiment_from_market(market)
     outcomes = JSON.parse(market["outcomes"] || "[]") rescue []
     prices = JSON.parse(market["outcomePrices"] || "[]") rescue []
@@ -56,24 +62,25 @@ class PolymarketClient
 
     sentiment = if yes_prob.nil?
                   nil
-                elsif yes_prob >= 0.6
+    elsif yes_prob >= 0.6
                   "bullish"
-                elsif yes_prob <= 0.4
+    elsif yes_prob <= 0.4
                   "bearish"
-                else
+    else
                   "neutral"
-                end
+    end
 
     {
       question: market["question"],
       yes_probability: yes_prob,
       sentiment: sentiment,
       volume_24h: market["volume24hr"]&.to_f,
-      volume_total: market["volumeNum"]&.to_f,
+      volume_total: market["volumeNum"]&.to_f
     }
   end
 
   # Fetch all relevant markets and match them to assets.
+  sig { params(max_markets: Integer).returns(T::Hash[String, T::Array[T::Hash[Symbol, T.untyped]]]) }
   def self.fetch_sentiment(max_markets: 200)
     all_markets = []
 
@@ -105,6 +112,7 @@ class PolymarketClient
   end
 
   # Aggregate sentiment from multiple markets (volume-weighted).
+  sig { params(markets: T::Array[T::Hash[Symbol, T.untyped]]).returns(T::Hash[Symbol, T.untyped]) }
   def self.aggregate(markets)
     return { score: nil, label: nil, confidence: nil, market_count: 0, total_volume: 0 } if markets.empty?
 
@@ -124,7 +132,7 @@ class PolymarketClient
       avg_prob = weighted_prob / total_volume
       score = (avg_prob - 0.5) * 2
       label = score >= 0.2 ? "bullish" : (score <= -0.2 ? "bearish" : "neutral")
-      confidence = [1.0, Math.log10(total_volume + 1) / 7.0].min
+      confidence = [ 1.0, Math.log10(total_volume + 1) / 7.0 ].min
     else
       score = label = confidence = nil
     end
@@ -135,7 +143,7 @@ class PolymarketClient
       confidence: confidence&.round(3),
       market_count: markets.size,
       total_volume: total_volume,
-      top_market: markets.first,
+      top_market: markets.first
     }
   end
 end

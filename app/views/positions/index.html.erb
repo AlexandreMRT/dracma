@@ -1,0 +1,36 @@
+<div class="max-w-7xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-white">Positions — <%= @portfolio.name %></h1>
+    <%= link_to "← Portfolio", portfolio_path(@portfolio), class: "text-blue-400 hover:text-blue-300" %>
+  </div>
+
+  <div class="bg-gray-800 rounded-lg overflow-hidden">
+    <table class="w-full text-sm text-gray-300">
+      <thead class="bg-gray-700 text-gray-400 uppercase text-xs">
+        <tr>
+          <th class="px-4 py-3 text-left">Ticker</th>
+          <th class="px-4 py-3 text-right">Quantity</th>
+          <th class="px-4 py-3 text-right">Avg Price</th>
+          <th class="px-4 py-3 text-right">Total Invested</th>
+          <th class="px-4 py-3 text-center">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700">
+        <% @positions.each do |pos| %>
+          <tr class="hover:bg-gray-750">
+            <td class="px-4 py-3 font-medium text-white"><%= pos.ticker %></td>
+            <td class="px-4 py-3 text-right"><%= number_with_delimiter(pos.quantity) %></td>
+            <td class="px-4 py-3 text-right">R$ <%= number_with_precision(pos.avg_price_brl, precision: 2) %></td>
+            <td class="px-4 py-3 text-right">R$ <%= number_with_precision(pos.quantity * pos.avg_price_brl, precision: 2) %></td>
+            <td class="px-4 py-3 text-center">
+              <%= link_to "Details", portfolio_position_path(@portfolio, pos), class: "text-blue-400 hover:text-blue-300" %>
+            </td>
+          </tr>
+        <% end %>
+        <% if @positions.empty? %>
+          <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No positions yet</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

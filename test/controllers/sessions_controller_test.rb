@@ -9,18 +9,21 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     )
 
     get "/auth/google_oauth2/callback"
+
     assert_redirected_to root_path
-    assert session[:user_id].present?
+    assert_predicate session[:user_id], :present?
   end
 
   test "destroy clears session" do
     login_as users(:alice)
     delete logout_path
+
     assert_redirected_to login_path
   end
 
   test "failure redirects to login" do
     get "/auth/failure", params: { message: "invalid_credentials" }
+
     assert_redirected_to login_path
   end
 end

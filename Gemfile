@@ -46,6 +46,7 @@ group :development, :test do
 
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
+  gem "rubocop-minitest", require: false
 end
 
 group :development do
@@ -68,4 +69,3 @@ gem "jwt"
 gem "omniauth-google-oauth2"
 gem "csv"
 gem "minitest", "~> 5.25"
-

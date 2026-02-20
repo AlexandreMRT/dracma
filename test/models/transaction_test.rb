@@ -2,7 +2,7 @@ require "test_helper"
 
 class TransactionTest < ActiveSupport::TestCase
   test "valid transaction" do
-    assert transactions(:alice_buy_petr4).valid?
+    assert_predicate transactions(:alice_buy_petr4), :valid?
   end
 
   test "belongs to portfolio" do
@@ -11,6 +11,7 @@ class TransactionTest < ActiveSupport::TestCase
 
   test "buy enum" do
     txn = transactions(:alice_buy_petr4)
-    assert txn.transaction_type_buy?
+
+    assert_predicate txn, :transaction_type_buy?
   end
 end

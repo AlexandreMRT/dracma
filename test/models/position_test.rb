@@ -2,7 +2,7 @@ require "test_helper"
 
 class PositionTest < ActiveSupport::TestCase
   test "valid position" do
-    assert positions(:alice_petr4).valid?
+    assert_predicate positions(:alice_petr4), :valid?
   end
 
   test "belongs to portfolio" do
@@ -12,6 +12,7 @@ class PositionTest < ActiveSupport::TestCase
   test "validates quantity is positive" do
     pos = positions(:alice_petr4)
     pos.quantity = -1
+
     assert_not pos.valid?
   end
 end

@@ -10,6 +10,7 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
 
   test "index shows transactions" do
     get portfolio_transactions_path(@portfolio)
+
     assert_response :success
   end
 
@@ -21,8 +22,8 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
           transaction_type: "buy",
           quantity: "50",
           price_brl: "60.00",
-          fees_brl: "0.00",
-        },
+          fees_brl: "0.00"
+        }
       }
     end
     assert_redirected_to portfolio_transactions_path(@portfolio)

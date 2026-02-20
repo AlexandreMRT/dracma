@@ -1,8 +1,11 @@
 # frozen_string_literal: true
+# typed: true
 
 # Detects trading signals from quote data.
 # Ported from Python signals.py - single source of truth for signal detection.
 module SignalDetector
+  extend T::Sig
+
   RSI_OVERSOLD = 30
   RSI_OVERBOUGHT = 70
   VOLUME_SPIKE_RATIO = 2.0
@@ -31,7 +34,7 @@ module SignalDetector
         signal_volume_spike: volume_spike ? 1 : 0,
         signal_golden_cross: golden_cross ? 1 : 0,
         signal_death_cross: death_cross ? 1 : 0,
-        signal_summary: summary,
+        signal_summary: summary
       }
     end
 
@@ -52,6 +55,7 @@ module SignalDetector
   end
 
   # Detect signals from a Hash or ActiveRecord object.
+  sig { params(data: T.untyped).returns(Result) }
   def self.detect(data)
     g = ->(key) { data.is_a?(Hash) ? data[key] : data.try(key) }
 
@@ -66,7 +70,7 @@ module SignalDetector
     close = g.call(:close) || g.call(:price_brl)
     near_52w_low = if week_52_low && close && week_52_low > 0
                      ((close - week_52_low) / week_52_low) * 100 <= NEAR_52W_LOW_PCT
-                   end
+    end
 
     volume_ratio = g.call(:volume_ratio)
     volume_spike = volume_ratio && volume_ratio >= VOLUME_SPIKE_RATIO
@@ -84,16 +88,16 @@ module SignalDetector
     positive_news = news && news > NEWS_SENTIMENT_POS
     negative_news = news && news < NEWS_SENTIMENT_NEG
 
-    bullish_count = [rsi_oversold, near_52w_low, golden_cross, above_50 == 1, above_200 == 1].count(true)
-    bearish_count = [rsi_overbought, near_52w_high, death_cross, above_50 == 0, above_200 == 0].count(true)
+    bullish_count = [ rsi_oversold, near_52w_low, golden_cross, above_50 == 1, above_200 == 1 ].count(true)
+    bearish_count = [ rsi_overbought, near_52w_high, death_cross, above_50 == 0, above_200 == 0 ].count(true)
 
     summary = if bullish_count >= BULLISH_MIN_COUNT && bullish_count > bearish_count
                 "bullish"
-              elsif bearish_count >= BEARISH_MIN_COUNT && bearish_count > bullish_count
+    elsif bearish_count >= BEARISH_MIN_COUNT && bearish_count > bullish_count
                 "bearish"
-              else
+    else
                 "neutral"
-              end
+    end
 
     Result.new(
       rsi_oversold: !!rsi_oversold,

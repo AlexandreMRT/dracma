@@ -2,7 +2,7 @@ require "test_helper"
 
 class WatchlistTest < ActiveSupport::TestCase
   test "valid watchlist" do
-    assert watchlists(:alice_petr4).valid?
+    assert_predicate watchlists(:alice_petr4), :valid?
   end
 
   test "belongs to user" do
@@ -11,6 +11,7 @@ class WatchlistTest < ActiveSupport::TestCase
 
   test "unique ticker per user" do
     wl = Watchlist.new(user: users(:alice), ticker: watchlists(:alice_petr4).ticker)
+
     assert_not wl.valid?
   end
 end

@@ -9,16 +9,16 @@ Rails.application.routes.draw do
   root "dashboard#index"
 
   # Assets & Quotes
-  resources :assets, only: [:index, :show]
-  resources :quotes, only: [:index]
+  resources :assets, path: "instruments", only: [ :index, :show ]
+  resources :quotes, only: [ :index ]
 
   # Watchlist
-  resources :watchlists, only: [:index, :create, :destroy]
+  resources :watchlists, only: [ :index, :create, :destroy ]
 
   # Portfolios
   resources :portfolios do
-    resources :positions, only: [:index, :show]
-    resources :transactions, only: [:index, :create, :destroy]
+    resources :positions, only: [ :index, :show ]
+    resources :transactions, only: [ :index, :create, :destroy ]
   end
 
   # Exports
@@ -29,7 +29,7 @@ Rails.application.routes.draw do
 
   # API namespace for Turbo/JSON endpoints
   namespace :api do
-    resources :quotes, only: [:index]
+    resources :quotes, only: [ :index ]
     get "signals", to: "signals#index"
     get "scoring", to: "scoring#index"
   end

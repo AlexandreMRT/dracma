@@ -1,0 +1,59 @@
+<div class="max-w-4xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold text-white"><%= @position.ticker %></h1>
+    <%= link_to "← Positions", portfolio_positions_path(@portfolio), class: "text-blue-400 hover:text-blue-300" %>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-gray-800 rounded-lg p-6">
+      <h2 class="text-lg font-semibold text-gray-400 mb-4">Position</h2>
+      <dl class="space-y-2">
+        <div class="flex justify-between"><dt class="text-gray-400">Quantity</dt><dd class="text-white"><%= number_with_delimiter(@position.quantity) %></dd></div>
+        <div class="flex justify-between"><dt class="text-gray-400">Avg Price</dt><dd class="text-white">R$ <%= number_with_precision(@position.avg_price_brl, precision: 2) %></dd></div>
+        <div class="flex justify-between"><dt class="text-gray-400">Total Invested</dt><dd class="text-white">R$ <%= number_with_precision(@position.quantity * @position.avg_price_brl, precision: 2) %></dd></div>
+      </dl>
+    </div>
+
+    <% if @performance %>
+    <div class="bg-gray-800 rounded-lg p-6">
+      <h2 class="text-lg font-semibold text-gray-400 mb-4">Performance</h2>
+      <dl class="space-y-2">
+        <% @performance.each do |key, val| %>
+          <div class="flex justify-between">
+            <dt class="text-gray-400"><%= key.to_s.titleize %></dt>
+            <dd class="text-white"><%= val.is_a?(Numeric) ? number_with_precision(val, precision: 2) : val %></dd>
+          </div>
+        <% end %>
+      </dl>
+    </div>
+    <% end %>
+  </div>
+
+  <% if @transactions.any? %>
+  <h2 class="text-lg font-semibold text-white mb-4">Transaction History</h2>
+  <div class="bg-gray-800 rounded-lg overflow-hidden">
+    <table class="w-full text-sm text-gray-300">
+      <thead class="bg-gray-700 text-gray-400 uppercase text-xs">
+        <tr>
+          <th class="px-4 py-3 text-left">Date</th>
+          <th class="px-4 py-3 text-left">Type</th>
+          <th class="px-4 py-3 text-right">Qty</th>
+          <th class="px-4 py-3 text-right">Price</th>
+          <th class="px-4 py-3 text-right">Total</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700">
+        <% @transactions.each do |txn| %>
+          <tr>
+            <td class="px-4 py-3"><%= txn.transaction_date&.strftime("%Y-%m-%d") %></td>
+            <td class="px-4 py-3"><span class="px-2 py-1 rounded text-xs font-medium <%= txn.transaction_type == 'buy' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300' %>"><%= txn.transaction_type.upcase %></span></td>
+            <td class="px-4 py-3 text-right"><%= txn.quantity %></td>
+            <td class="px-4 py-3 text-right">R$ <%= number_with_precision(txn.price_brl, precision: 2) %></td>
+            <td class="px-4 py-3 text-right">R$ <%= number_with_precision(txn.total_brl, precision: 2) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+  <% end %>
+</div>

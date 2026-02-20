@@ -9,34 +9,36 @@
     <% end %>
   </div>
 
-  <% if @watchlists.any? %>
-    <div class="bg-gray-800 rounded-lg border border-gray-700">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-gray-400 text-left">
-            <th class="px-4 py-2">Ticker</th>
-            <th class="px-4 py-2">Added</th>
-            <th class="px-4 py-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <% @watchlists.each do |wl| %>
-            <tr class="border-t border-gray-700">
-              <td class="px-4 py-2 font-mono text-emerald-400"><%= wl.ticker %></td>
-              <td class="px-4 py-2 text-gray-400"><%= wl.created_at.strftime("%Y-%m-%d") %></td>
-              <td class="px-4 py-2 text-right">
-                <%= button_to "Remove", watchlist_path(wl), method: :delete,
-                  class: "text-red-400 hover:text-red-300 text-xs",
-                  data: { turbo_confirm: "Remove #{wl.ticker}?" } %>
-              </td>
+  <%= turbo_frame_tag "watchlist_table" do %>
+    <% if @watchlists.any? %>
+      <div class="bg-gray-800 rounded-lg border border-gray-700">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-gray-400 text-left">
+              <th class="px-4 py-2">Ticker</th>
+              <th class="px-4 py-2">Added</th>
+              <th class="px-4 py-2"></th>
             </tr>
-          <% end %>
-        </tbody>
-      </table>
-    </div>
-  <% else %>
-    <div class="bg-gray-800 rounded-lg p-8 border border-gray-700 text-center text-gray-400">
-      Your watchlist is empty. Add tickers above to start tracking.
-    </div>
+          </thead>
+          <tbody>
+            <% @watchlists.each do |wl| %>
+              <tr class="border-t border-gray-700" id="<%= dom_id(wl) %>">
+                <td class="px-4 py-2 font-mono text-emerald-400"><%= wl.ticker %></td>
+                <td class="px-4 py-2 text-gray-400"><%= wl.created_at.strftime("%Y-%m-%d") %></td>
+                <td class="px-4 py-2 text-right">
+                  <%= button_to "Remove", watchlist_path(wl), method: :delete,
+                    class: "text-red-400 hover:text-red-300 text-xs",
+                    data: { turbo_confirm: "Remove #{wl.ticker}?" } %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% else %>
+      <div class="bg-gray-800 rounded-lg p-8 border border-gray-700 text-center text-gray-400">
+        Your watchlist is empty. Add tickers above to start tracking.
+      </div>
+    <% end %>
   <% end %>
 </div>

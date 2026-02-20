@@ -43,16 +43,18 @@
     <% end %>
 
     <% if flash[:notice] %>
-      <div class="container mx-auto px-5 mt-4">
-        <div class="bg-emerald-900/50 border border-emerald-600 text-emerald-200 px-4 py-2 rounded text-sm">
-          <%= flash[:notice] %>
+      <div class="container mx-auto px-5 mt-4" data-controller="flash" data-flash-delay-value="5000">
+        <div class="bg-emerald-900/50 border border-emerald-600 text-emerald-200 px-4 py-2 rounded text-sm flex justify-between items-center">
+          <span><%= flash[:notice] %></span>
+          <button data-action="click->flash#dismiss" class="text-emerald-400 hover:text-white ml-4">&times;</button>
         </div>
       </div>
     <% end %>
     <% if flash[:alert] %>
-      <div class="container mx-auto px-5 mt-4">
-        <div class="bg-red-900/50 border border-red-600 text-red-200 px-4 py-2 rounded text-sm">
-          <%= flash[:alert] %>
+      <div class="container mx-auto px-5 mt-4" data-controller="flash" data-flash-delay-value="8000">
+        <div class="bg-red-900/50 border border-red-600 text-red-200 px-4 py-2 rounded text-sm flex justify-between items-center">
+          <span><%= flash[:alert] %></span>
+          <button data-action="click->flash#dismiss" class="text-red-400 hover:text-white ml-4">&times;</button>
         </div>
       </div>
     <% end %>

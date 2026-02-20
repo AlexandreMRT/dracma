@@ -7,6 +7,7 @@ class SignalDetectorTest < ActiveSupport::TestCase
     data = { rsi_14: 50.0, week_52_high: 100, week_52_low: 50, close: 75,
              volume_ratio: 1.0, ma_50_above_200: nil, above_ma_50: nil, above_ma_200: nil }
     result = SignalDetector.detect(data)
+
     assert_equal "neutral", result.summary
   end
 
@@ -14,6 +15,7 @@ class SignalDetectorTest < ActiveSupport::TestCase
     data = { rsi_14: 25.0, week_52_high: 100, week_52_low: 50, close: 55,
              volume_ratio: 1.0, ma_50_above_200: nil, above_ma_50: nil, above_ma_200: nil }
     result = SignalDetector.detect(data)
+
     assert result.rsi_oversold
   end
 
@@ -21,6 +23,7 @@ class SignalDetectorTest < ActiveSupport::TestCase
     data = { rsi_14: 75.0, week_52_high: 100, week_52_low: 50, close: 80,
              volume_ratio: 1.0, ma_50_above_200: nil, above_ma_50: nil, above_ma_200: nil }
     result = SignalDetector.detect(data)
+
     assert result.rsi_overbought
   end
 
@@ -28,6 +31,7 @@ class SignalDetectorTest < ActiveSupport::TestCase
     data = { rsi_14: 50.0, week_52_high: 100, week_52_low: 50, close: 75,
              volume_ratio: 5.0, ma_50_above_200: nil, above_ma_50: nil, above_ma_200: nil }
     result = SignalDetector.detect(data)
+
     assert result.volume_spike
   end
 
@@ -35,6 +39,7 @@ class SignalDetectorTest < ActiveSupport::TestCase
     data = { rsi_14: 50.0, week_52_high: 100, week_52_low: 50, close: 80,
              volume_ratio: 1.0, ma_50_above_200: 1, above_ma_50: 1, above_ma_200: 1 }
     result = SignalDetector.detect(data)
+
     assert result.golden_cross
   end
 
@@ -42,6 +47,7 @@ class SignalDetectorTest < ActiveSupport::TestCase
     data = { rsi_14: 50.0, week_52_high: 100, week_52_low: 50, close: 60,
              volume_ratio: 1.0, ma_50_above_200: 0, above_ma_50: 0, above_ma_200: 0 }
     result = SignalDetector.detect(data)
+
     assert result.death_cross
   end
 
@@ -50,6 +56,7 @@ class SignalDetectorTest < ActiveSupport::TestCase
              volume_ratio: 5.0, ma_50_above_200: nil, above_ma_50: nil, above_ma_200: nil }
     result = SignalDetector.detect(data)
     flags = result.as_db_flags
+
     assert_equal 1, flags[:signal_rsi_oversold]
     assert_equal 1, flags[:signal_volume_spike]
   end

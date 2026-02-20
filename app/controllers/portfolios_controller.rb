@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class PortfoliosController < ApplicationController
-  before_action :set_portfolio, only: [:show, :edit, :update, :destroy]
+  before_action :set_portfolio, only: [ :show, :edit, :update, :destroy ]
 
   def index
     @portfolios = PortfolioService.user_portfolios(current_user)

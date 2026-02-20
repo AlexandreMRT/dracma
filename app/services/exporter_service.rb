@@ -1,11 +1,15 @@
 # frozen_string_literal: true
+# typed: true
 
 # Exporter service: CSV, JSON, Markdown reports, and AI reports.
 # Ported from Python exporter.py.
 module ExporterService
+  extend T::Sig
+
   EXPORTS_PATH = ENV.fetch("EXPORTS_PATH", Rails.root.join("exports").to_s)
 
   # Fetch the latest quote per asset (or for a specific date).
+  sig { params(quote_date: T.nilable(Date)).returns(T::Array[T.untyped]) }
   def self.latest_quotes(quote_date: nil)
     scope = Quote.includes(:asset)
     if quote_date
@@ -18,6 +22,7 @@ module ExporterService
   end
 
   # Format a quote record into a flat hash suitable for export.
+  sig { params(quote: T.untyped).returns(T::Hash[Symbol, T.untyped]) }
   def self.format_row(quote)
     a = quote.asset
     {
@@ -95,11 +100,12 @@ module ExporterService
       news_headline_en: quote.news_headline_en,
       news_sentiment_label: quote.news_sentiment_label,
       data_cotacao: quote.quote_date&.strftime("%Y-%m-%d"),
-      atualizado_em: quote.fetched_at&.strftime("%Y-%m-%d %H:%M:%S"),
+      atualizado_em: quote.fetched_at&.strftime("%Y-%m-%d %H:%M:%S")
     }
   end
 
   # --- CSV export ---
+  sig { params(quote_date: T.nilable(Date), filename: T.nilable(String)).returns(T.nilable(String)) }
   def self.export_csv(quote_date: nil, filename: nil)
     quotes = latest_quotes(quote_date: quote_date)
     return nil if quotes.empty?
@@ -109,7 +115,7 @@ module ExporterService
     filepath = File.join(EXPORTS_PATH, filename)
     FileUtils.mkdir_p(EXPORTS_PATH)
 
-    rows = quotes.map { |q| format_row(q) }.sort_by { |r| [r[:setor], r[:ticker]] }
+    rows = quotes.map { |q| format_row(q) }.sort_by { |r| [ r[:setor], r[:ticker] ] }
 
     require "csv"
     CSV.open(filepath, "w", encoding: "UTF-8") do |csv|
@@ -122,6 +128,7 @@ module ExporterService
   end
 
   # --- JSON export ---
+  sig { params(quote_date: T.nilable(Date), filename: T.nilable(String)).returns(T.nilable(String)) }
   def self.export_json(quote_date: nil, filename: nil)
     quotes = latest_quotes(quote_date: quote_date)
     return nil if quotes.empty?
@@ -131,12 +138,12 @@ module ExporterService
     filepath = File.join(EXPORTS_PATH, filename)
     FileUtils.mkdir_p(EXPORTS_PATH)
 
-    rows = quotes.map { |q| format_row(q) }.sort_by { |r| [r[:setor], r[:ticker]] }
+    rows = quotes.map { |q| format_row(q) }.sort_by { |r| [ r[:setor], r[:ticker] ] }
 
     data = {
       data_exportacao: Time.current.strftime("%Y-%m-%d %H:%M:%S"),
       total_ativos: rows.size,
-      cotacoes: rows,
+      cotacoes: rows
     }
 
     File.write(filepath, JSON.pretty_generate(data))
@@ -145,6 +152,7 @@ module ExporterService
   end
 
   # --- Report data builder ---
+  sig { returns(T.nilable(T::Hash[Symbol, T.untyped])) }
   def self.report_data
     quotes = latest_quotes
     return nil if quotes.empty?
@@ -191,15 +199,16 @@ module ExporterService
         bullish: bullish, bearish: bearish,
         oversold: oversold, overbought: overbought,
         near_52w_high: near_high, near_52w_low: near_low,
-        volume_spike: vol_spike, golden_cross: golden,
+        volume_spike: vol_spike, golden_cross: golden
       },
       news_sentiment: { positive: positive_news, negative: negative_news },
       algorithmic: algo,
-      all_data: rows,
+      all_data: rows
     }
   end
 
   # --- Markdown report ---
+  sig { params(filename: T.nilable(String)).returns(T.nilable(String)) }
   def self.export_human_report(filename: nil)
     data = report_data
     return nil unless data
@@ -281,6 +290,7 @@ module ExporterService
   end
 
   # --- AI JSON report ---
+  sig { params(filename: T.nilable(String)).returns(T.nilable(String)) }
   def self.export_ai_report(filename: nil)
     data = report_data
     return nil unless data
@@ -294,13 +304,13 @@ module ExporterService
         report_type: "daily_market_summary",
         generated_at: data[:generated_at].iso8601,
         total_assets: data[:total_assets],
-        version: "1.0",
+        version: "1.0"
       },
       market_context: {
         ibov_ytd_pct: data[:market_context][:ibov_ytd],
         sp500_ytd_pct: data[:market_context][:sp500_ytd],
         usd_brl: data[:market_context][:usd_brl],
-        asset_counts: data[:counts],
+        asset_counts: data[:counts]
       },
       signals_summary: {
         bullish_count: data[:signals][:bullish].size,
@@ -312,7 +322,7 @@ module ExporterService
         near_52w_high: data[:signals][:near_52w_high].map { |r| r[:ticker] },
         near_52w_low: data[:signals][:near_52w_low].map { |r| r[:ticker] },
         volume_spike: data[:signals][:volume_spike].map { |r| r[:ticker] },
-        golden_cross_count: data[:signals][:golden_cross].size,
+        golden_cross_count: data[:signals][:golden_cross].size
       },
       top_movers: {
         gainers_1d: data[:top_movers][:gainers].first(10).map { |r|
@@ -320,7 +330,7 @@ module ExporterService
         },
         losers_1d: data[:top_movers][:losers].first(10).map { |r|
           { ticker: r[:ticker], name: r[:nome], change_1d: r[:var_1d] }
-        },
+        }
       },
       news_sentiment: {
         positive_count: data[:news_sentiment][:positive].size,
@@ -332,17 +342,17 @@ module ExporterService
         negative: data[:news_sentiment][:negative].first(10).map { |r|
           { ticker: r[:ticker], score: r[:news_sentiment_combined],
             headline: (r[:news_headline_pt] || r[:news_headline_en] || "")[0, 100] }
-        },
+        }
       },
       actionable_insights: {
         potential_buys: data[:signals][:oversold].map { |r| r[:ticker] } +
                         data[:signals][:near_52w_low].map { |r| r[:ticker] },
         potential_sells: data[:signals][:overbought].map { |r| r[:ticker] },
         algorithmic_watchlist: data.dig(:algorithmic, :watchlist) || [],
-        algorithmic_avoid_list: data.dig(:algorithmic, :avoid_list) || [],
+        algorithmic_avoid_list: data.dig(:algorithmic, :avoid_list) || []
       },
       polymarket_sentiment: polymarket_for_report,
-      full_data: data[:all_data],
+      full_data: data[:all_data]
     }
 
     File.write(filepath, JSON.pretty_generate(report))
@@ -351,13 +361,15 @@ module ExporterService
   end
 
   # --- Generate both reports ---
+  sig { returns([ T.nilable(String), T.nilable(String) ]) }
   def self.generate_reports
     human = export_human_report
     ai    = export_ai_report
-    [human, ai]
+    [ human, ai ]
   end
 
   # --- Polymarket data for report ---
+  sig { returns(T::Hash[String, T.untyped]) }
   def self.polymarket_for_report
     asset_markets = PolymarketClient.fetch_sentiment
     result = {}
@@ -371,7 +383,7 @@ module ExporterService
         total_volume_24h: agg[:total_volume],
         top_markets: markets.first(3).map { |m|
           { question: m[:question], probability: m[:yes_probability], volume_24h: m[:volume_24h] }
-        },
+        }
       }
     end
     result

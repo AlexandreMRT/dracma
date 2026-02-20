@@ -2,7 +2,7 @@ require "test_helper"
 
 class QuoteTest < ActiveSupport::TestCase
   test "valid quote" do
-    assert quotes(:petr4_today).valid?
+    assert_predicate quotes(:petr4_today), :valid?
   end
 
   test "belongs to asset" do
@@ -11,6 +11,7 @@ class QuoteTest < ActiveSupport::TestCase
 
   test "requires price_brl" do
     q = Quote.new(asset: assets(:petr4), quote_date: Date.new(2026, 3, 1))
+
     assert_not q.valid?
     assert_includes q.errors[:price_brl], "can't be blank"
   end

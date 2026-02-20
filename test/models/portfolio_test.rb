@@ -2,11 +2,12 @@ require "test_helper"
 
 class PortfolioTest < ActiveSupport::TestCase
   test "valid portfolio" do
-    assert portfolios(:alice_default).valid?
+    assert_predicate portfolios(:alice_default), :valid?
   end
 
   test "requires name" do
     p = Portfolio.new(user: users(:alice))
+
     assert_not p.valid?
     assert_includes p.errors[:name], "can't be blank"
   end

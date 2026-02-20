@@ -9,22 +9,22 @@
     </form>
   </div>
 
-  <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-x-auto">
+  <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-x-auto" data-controller="sortable">
     <table class="w-full text-sm whitespace-nowrap">
       <thead>
         <tr class="text-gray-400 text-left bg-gray-800/80">
-          <th class="px-3 py-2">Ticker</th>
-          <th class="px-3 py-2">Name</th>
-          <th class="px-3 py-2 text-right">BRL</th>
-          <th class="px-3 py-2 text-right">1D</th>
-          <th class="px-3 py-2 text-right">1W</th>
-          <th class="px-3 py-2 text-right">1M</th>
-          <th class="px-3 py-2 text-right">YTD</th>
-          <th class="px-3 py-2 text-right">RSI</th>
+          <th class="px-3 py-2 cursor-pointer hover:text-white" data-sortable-target="header" data-action="click->sortable#sort" data-column="ticker" data-index="0">Ticker</th>
+          <th class="px-3 py-2 cursor-pointer hover:text-white" data-sortable-target="header" data-action="click->sortable#sort" data-column="name" data-index="1">Name</th>
+          <th class="px-3 py-2 text-right cursor-pointer hover:text-white" data-sortable-target="header" data-action="click->sortable#sort" data-column="brl" data-index="2">BRL</th>
+          <th class="px-3 py-2 text-right cursor-pointer hover:text-white" data-sortable-target="header" data-action="click->sortable#sort" data-column="1d" data-index="3">1D</th>
+          <th class="px-3 py-2 text-right cursor-pointer hover:text-white" data-sortable-target="header" data-action="click->sortable#sort" data-column="1w" data-index="4">1W</th>
+          <th class="px-3 py-2 text-right cursor-pointer hover:text-white" data-sortable-target="header" data-action="click->sortable#sort" data-column="1m" data-index="5">1M</th>
+          <th class="px-3 py-2 text-right cursor-pointer hover:text-white" data-sortable-target="header" data-action="click->sortable#sort" data-column="ytd" data-index="6">YTD</th>
+          <th class="px-3 py-2 text-right cursor-pointer hover:text-white" data-sortable-target="header" data-action="click->sortable#sort" data-column="rsi" data-index="7">RSI</th>
           <th class="px-3 py-2">Signal</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody data-sortable-target="body">
         <% @rows.each do |r| %>
           <tr class="border-t border-gray-700 hover:bg-gray-700/50">
             <td class="px-3 py-1 font-mono text-emerald-400"><%= r[:ticker] %></td>

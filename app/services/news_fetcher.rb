@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# typed: true
 
 require "net/http"
 require "uri"
@@ -7,9 +8,12 @@ require "json"
 # Google News RSS feed fetcher using Net::HTTP + Nokogiri (bundled with Rails).
 # Replaces Python's feedparser.
 class NewsFetcher
+  extend T::Sig
+
   GOOGLE_NEWS_RSS = "https://news.google.com/rss/search"
 
   # Fetch English news via Yahoo Finance API.
+  sig { params(ticker: String, max: Integer).returns(T::Array[T::Hash[Symbol, String]]) }
   def self.english(ticker, max: 10)
     uri = URI("https://query1.finance.yahoo.com/v8/finance/chart/#{ERB::Util.url_encode(ticker)}")
     # Yahoo Finance doesn't have a great free news endpoint;
@@ -21,6 +25,7 @@ class NewsFetcher
   end
 
   # Fetch Portuguese news via Google News RSS.
+  sig { params(company_name: String, ticker: String, max: Integer).returns(T::Array[T::Hash[Symbol, String]]) }
   def self.portuguese(company_name, ticker, max: 10)
     clean_ticker = ticker.delete_suffix(".SA")
     query = "#{company_name} OR #{clean_ticker} ações bolsa"
@@ -31,12 +36,13 @@ class NewsFetcher
   end
 
   # Fetch and analyze news sentiment for a stock.
+  sig { params(ticker: String, company_name: String, brazilian: T::Boolean).returns(T::Hash[Symbol, T.untyped]) }
   def self.sentiment(ticker, company_name, brazilian: true)
     result = {
       news_sentiment_pt: nil, news_sentiment_en: nil, news_sentiment_combined: nil,
       news_count_pt: 0, news_count_en: 0,
       news_headline_pt: nil, news_headline_en: nil,
-      news_sentiment_label: nil,
+      news_sentiment_label: nil
     }
 
     # English news
@@ -64,9 +70,9 @@ class NewsFetcher
     en = result[:news_sentiment_en]
     combined = if pt && en
                  (pt * 0.6) + (en * 0.4)
-               else
+    else
                  pt || en
-               end
+    end
 
     result[:news_sentiment_combined] = combined
     result[:news_sentiment_label] = SentimentAnalyzer.label(combined)

@@ -1,9 +1,13 @@
 # frozen_string_literal: true
+# typed: true
 
 # Main quote fetching service. Orchestrates Yahoo Finance, news, benchmarks,
 # signals, and persists results to the database.
 # Ported from Python fetcher.py.
 class QuoteFetcher
+  extend T::Sig
+
+  sig { void }
   def initialize
     @logger = Rails.logger
     @usd_brl = nil
@@ -11,6 +15,7 @@ class QuoteFetcher
   end
 
   # Fetch and save quotes for all tracked assets.
+  sig { returns([ Integer, Integer ]) }
   def fetch_all
     @logger.info("=== QuoteFetcher: starting full fetch ===")
     start = Time.current
@@ -44,11 +49,12 @@ class QuoteFetcher
 
     elapsed = Time.current - start
     @logger.info("=== QuoteFetcher complete: #{saved}/#{catalog.size} saved in #{elapsed.round(1)}s ===")
-    [saved, errors]
+    [ saved, errors ]
   end
 
   private
 
+  sig { returns(Float) }
   def fetch_usd_brl
     data = YahooFinanceClient.history("USDBRL=X", range: "5d")
     data[:quotes].last&.dig(:close) || 6.20
@@ -56,6 +62,7 @@ class QuoteFetcher
     6.20
   end
 
+  sig { returns(T::Hash[String, T.untyped]) }
   def fetch_benchmarks
     result = {}
     { "^BVSP" => "ibov", "^GSPC" => "sp500" }.each do |ticker, prefix|
@@ -76,6 +83,7 @@ class QuoteFetcher
     result
   end
 
+  sig { returns(T::Array[T::Hash[Symbol, T.untyped]]) }
   def build_asset_list
     list = []
     AssetCatalog::IBOVESPA_STOCKS.each { |t, i| list << { ticker: t, info: i, type: "stock", brazilian: true } }
@@ -86,6 +94,7 @@ class QuoteFetcher
     list
   end
 
+  sig { params(entry: T::Hash[Symbol, T.untyped]).returns(T.nilable(T::Hash[Symbol, T.untyped])) }
   def fetch_single(entry)
     ticker = entry[:ticker]
     data = YahooFinanceClient.history(ticker)
@@ -120,7 +129,7 @@ class QuoteFetcher
       price_ytd: price_at(quotes, Date.new(today.year, 1, 1)),
       price_5y: price_at(quotes, today - (5 * 365)),
       price_all: quotes.first[:close],
-      pct_from_52w_high: pct_from_52w,
+      pct_from_52w_high: pct_from_52w
     }.merge(fundamentals).merge(technicals)
 
     # Changes
@@ -162,6 +171,7 @@ class QuoteFetcher
     nil
   end
 
+  sig { params(result: T.nilable(T::Hash[Symbol, T.untyped])).void }
   def fetch_news_for(result)
     return unless result
 
@@ -175,6 +185,7 @@ class QuoteFetcher
     @logger.warn("News error for #{result[:ticker]}: #{e.message}")
   end
 
+  sig { params(results: T::Array[T::Hash[Symbol, T.untyped]]).returns(Integer) }
   def save_all(results)
     saved = 0
     results.each do |r|
@@ -199,10 +210,12 @@ class QuoteFetcher
     saved
   end
 
+  sig { params(type: String).returns(String) }
   def normalize_type(type)
     type == "us_stock" ? "stock" : type
   end
 
+  sig { params(quote: T.untyped, qd: T::Hash[Symbol, T.untyped], price_brl: T.untyped, price_usd: T.untyped).void }
   def assign_quote_fields(quote, qd, price_brl, price_usd)
     g = ->(k) { qd[k] }
 
@@ -255,6 +268,7 @@ class QuoteFetcher
     end
   end
 
+  sig { params(quotes: T::Array[T::Hash[Symbol, T.untyped]], current: Float).returns(T::Hash[Symbol, T.untyped]) }
   def calculate_technicals(quotes, current)
     closes = quotes.map { |q| q[:close] }
     result = {}
@@ -297,6 +311,7 @@ class QuoteFetcher
     result
   end
 
+  sig { params(closes: T::Array[Float], period: Integer).returns(T.nilable(Float)) }
   def calculate_rsi(closes, period: 14)
     return nil if closes.size < period + 1
 
@@ -313,11 +328,13 @@ class QuoteFetcher
     100 - (100 / (1 + rs))
   end
 
+  sig { params(quotes: T::Array[T::Hash[Symbol, T.untyped]], target_date: T.untyped).returns(T.nilable(Float)) }
   def price_at(quotes, target_date)
     target_date = target_date.to_date if target_date.respond_to?(:to_date)
     quotes.select { |q| q[:date] <= target_date }.last&.dig(:close)
   end
 
+  sig { params(current: Float, previous: T.nilable(Float)).returns(T.nilable(Float)) }
   def change_pct(current, previous)
     return nil unless previous && previous > 0
 

@@ -9,6 +9,7 @@ class WatchlistsControllerTest < ActionDispatch::IntegrationTest
 
   test "index shows watchlists" do
     get watchlists_path
+
     assert_response :success
   end
 

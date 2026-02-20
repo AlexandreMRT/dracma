@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# typed: true
 
 require "net/http"
 require "json"
@@ -7,6 +8,8 @@ require "uri"
 # Yahoo Finance client using public chart API (no gem dependency).
 # Replaces Python's yfinance library with pure Net::HTTP calls.
 class YahooFinanceClient
+  extend T::Sig
+
   BASE = "https://query1.finance.yahoo.com"
 
   class Error < StandardError; end
@@ -17,6 +20,7 @@ class YahooFinanceClient
   # @param range [String] "1d","5d","1mo","3mo","6mo","1y","5y","max"
   # @param interval [String] "1d","1wk","1mo"
   # @return [Hash] with :meta and :quotes keys
+  sig { params(ticker: String, range: String, interval: String).returns(T::Hash[Symbol, T.untyped]) }
   def self.history(ticker, range: "max", interval: "1d")
     uri = URI("#{BASE}/v8/finance/chart/#{ERB::Util.url_encode(ticker)}")
     uri.query = URI.encode_www_form(range: range, interval: interval, events: "history")
@@ -39,7 +43,7 @@ class YahooFinanceClient
         high: ohlcv.dig("high", i)&.to_f,
         low: ohlcv.dig("low", i)&.to_f,
         close: ohlcv.dig("close", i)&.to_f,
-        volume: ohlcv.dig("volume", i)&.to_f,
+        volume: ohlcv.dig("volume", i)&.to_f
       }
     end.reject { |q| q[:close].nil? }
 
@@ -50,6 +54,7 @@ class YahooFinanceClient
   #
   # @param ticker [String]
   # @return [Hash] key fundamental fields
+  sig { params(ticker: String).returns(T::Hash[Symbol, T.untyped]) }
   def self.info(ticker)
     modules = "summaryDetail,defaultKeyStatistics,financialData,recommendationTrend"
     uri = URI("#{BASE}/v10/finance/quoteSummary/#{ERB::Util.url_encode(ticker)}")
@@ -79,7 +84,7 @@ class YahooFinanceClient
       debt_to_equity: raw_value(financials, "debtToEquity"),
       analyst_rating: raw_value(financials, "recommendationKey"),
       target_price: raw_value(financials, "targetMeanPrice"),
-      num_analysts: raw_value(financials, "numberOfAnalystOpinions"),
+      num_analysts: raw_value(financials, "numberOfAnalystOpinions")
     }
   rescue StandardError
     {}

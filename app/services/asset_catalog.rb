@@ -1,7 +1,10 @@
 # frozen_string_literal: true
+# typed: true
 
 # Static catalog of tracked assets, ported from Python assets.py
 module AssetCatalog
+  extend T::Sig
+
   IBOVESPA_STOCKS = {
     # Bancos e Financeiro
     "BBAS3.SA" => { name: "Banco do Brasil", sector: "Bancário" },
@@ -132,23 +135,23 @@ module AssetCatalog
     "BMOB3.SA" => { name: "Bmob3", sector: "Tecnologia" },
     "SLCE3.SA" => { name: "SLC Agrícola", sector: "Agronegócio" },
     "AGRO3.SA" => { name: "BrasilAgro", sector: "Agronegócio" },
-    "GGPS3.SA" => { name: "GPS Participações", sector: "Holding" },
+    "GGPS3.SA" => { name: "GPS Participações", sector: "Holding" }
   }.freeze
 
   COMMODITIES = {
     "GC=F" => { name: "Ouro", sector: "Metal Precioso", unit: "oz" },
     "SI=F" => { name: "Prata", sector: "Metal Precioso", unit: "oz" },
     "PL=F" => { name: "Platina", sector: "Metal Precioso", unit: "oz" },
-    "PA=F" => { name: "Paládio", sector: "Metal Precioso", unit: "oz" },
+    "PA=F" => { name: "Paládio", sector: "Metal Precioso", unit: "oz" }
   }.freeze
 
   CRYPTO = {
     "BTC-USD" => { name: "Bitcoin", sector: "Criptomoeda", unit: "unidade" },
-    "ETH-USD" => { name: "Ethereum", sector: "Criptomoeda", unit: "unidade" },
+    "ETH-USD" => { name: "Ethereum", sector: "Criptomoeda", unit: "unidade" }
   }.freeze
 
   CURRENCY = {
-    "USDBRL=X" => { name: "Dólar/Real", sector: "Câmbio", unit: "" },
+    "USDBRL=X" => { name: "Dólar/Real", sector: "Câmbio", unit: "" }
   }.freeze
 
   US_STOCKS = {
@@ -171,13 +174,15 @@ module AssetCatalog
     "MCD" => { name: "McDonald's", sector: "Restaurantes" },
     "WMT" => { name: "Walmart", sector: "Varejo" },
     "XOM" => { name: "Exxon Mobil", sector: "Petróleo e Gás" },
-    "CVX" => { name: "Chevron", sector: "Petróleo e Gás" },
+    "CVX" => { name: "Chevron", sector: "Petróleo e Gás" }
   }.freeze
 
+  sig { returns(T::Hash[String, T::Hash[Symbol, String]]) }
   def self.all
     {}.merge(IBOVESPA_STOCKS).merge(US_STOCKS).merge(COMMODITIES).merge(CRYPTO).merge(CURRENCY)
   end
 
+  sig { params(ticker: String).returns(String) }
   def self.asset_type_for(ticker)
     return "stock" if IBOVESPA_STOCKS.key?(ticker)
     return "us_stock" if US_STOCKS.key?(ticker)
@@ -188,10 +193,12 @@ module AssetCatalog
     "stock"
   end
 
+  sig { params(ticker: String).returns(T::Boolean) }
   def self.brazilian?(ticker)
     IBOVESPA_STOCKS.key?(ticker)
   end
 
+  sig { params(ticker: String).returns(T::Hash[Symbol, String]) }
   def self.info(ticker)
     all[ticker] || { name: "Desconhecido", sector: "Outro" }
   end

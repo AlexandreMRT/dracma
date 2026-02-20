@@ -16,7 +16,7 @@ module Api
                               .map { |r| { ticker: r[:ticker], rsi: r[:rsi_14] } },
         near_52w_high: stocks.select { |r| r[:signal_52w_high] == 1 }.map { |r| r[:ticker] },
         near_52w_low: stocks.select { |r| r[:signal_52w_low] == 1 }.map { |r| r[:ticker] },
-        volume_spike: stocks.select { |r| r[:signal_volume_spike] == 1 }.map { |r| r[:ticker] },
+        volume_spike: stocks.select { |r| r[:signal_volume_spike] == 1 }.map { |r| r[:ticker] }
       })
     end
   end

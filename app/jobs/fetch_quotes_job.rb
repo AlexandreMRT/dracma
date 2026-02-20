@@ -7,7 +7,7 @@ class FetchQuotesJob < ApplicationJob
 
   def perform
     Rails.logger.info("[FetchQuotesJob] Starting quote fetch...")
-    QuoteFetcher.fetch_all
+    QuoteFetcher.new.fetch_all
     Rails.logger.info("[FetchQuotesJob] Quote fetch complete.")
   rescue StandardError => e
     Rails.logger.error("[FetchQuotesJob] Error: #{e.message}")
