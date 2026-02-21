@@ -11,6 +11,9 @@ class YahooFinanceClient
   extend T::Sig
 
   BASE = "https://query1.finance.yahoo.com"
+  MAX_RETRIES = 5
+  BASE_BACKOFF_SECONDS = 1.0
+  DEFAULT_THROTTLE_SECONDS = 0.15
 
   class Error < StandardError; end
 
@@ -25,10 +28,10 @@ class YahooFinanceClient
     uri = URI("#{BASE}/v8/finance/chart/#{ERB::Util.url_encode(ticker)}")
     uri.query = URI.encode_www_form(range: range, interval: interval, events: "history")
 
-    response = Net::HTTP.get_response(uri)
+    response = perform_request(uri)
     raise Error, "Yahoo Finance HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
-    data = JSON.parse(response.body)
+    data = JSON.parse(T.must(response.body))
     result = data.dig("chart", "result", 0)
     raise Error, "No data for #{ticker}" unless result
 
@@ -60,10 +63,10 @@ class YahooFinanceClient
     uri = URI("#{BASE}/v10/finance/quoteSummary/#{ERB::Util.url_encode(ticker)}")
     uri.query = URI.encode_www_form(modules: modules)
 
-    response = Net::HTTP.get_response(uri)
+    response = perform_request(uri)
     return {} unless response.is_a?(Net::HTTPSuccess)
 
-    data = JSON.parse(response.body)
+    data = JSON.parse(T.must(response.body))
     result = data.dig("quoteSummary", "result", 0) || {}
     summary = result["summaryDetail"] || {}
     stats = result["defaultKeyStatistics"] || {}
@@ -100,5 +103,57 @@ class YahooFinanceClient
     val < 1 ? val * 100 : val
   end
 
-  private_class_method :raw_value, :safe_pct
+  sig { params(uri: URI::Generic).returns(Net::HTTPResponse) }
+  def self.perform_request(uri)
+    retries = 0
+
+    loop do
+      request = Net::HTTP::Get.new(uri)
+      request["User-Agent"] = "Mozilla/5.0 (compatible; DracmaBot/1.0)"
+
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = uri.scheme == "https"
+      http.open_timeout = 10
+      http.read_timeout = 20
+
+      begin
+        response = http.request(request)
+
+        if should_retry?(response) && retries < MAX_RETRIES
+          retries += 1
+          sleep(backoff_for(retries, response))
+          next
+        end
+
+        sleep(DEFAULT_THROTTLE_SECONDS)
+        return response
+      rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNRESET, Errno::ETIMEDOUT => e
+        if retries < MAX_RETRIES
+          retries += 1
+          sleep(backoff_for(retries, nil))
+          next
+        end
+
+        raise Error, "Yahoo Finance request failed: #{e.class}"
+      end
+    end
+  end
+
+  sig { params(response: Net::HTTPResponse).returns(T::Boolean) }
+  def self.should_retry?(response)
+    response.code == "429" || (response.code.to_i >= 500)
+  end
+
+  sig { params(attempt: Integer, response: T.nilable(Net::HTTPResponse)).returns(Float) }
+  def self.backoff_for(attempt, response)
+    retry_after = response&.[]("Retry-After")
+    return retry_after.to_f if retry_after && retry_after.to_f.positive?
+
+    exponent = attempt - 1
+    base = BASE_BACKOFF_SECONDS * (2.0**exponent)
+    jitter = Kernel.rand * 0.25
+    (base + jitter).to_f
+  end
+
+  private_class_method :raw_value, :safe_pct, :perform_request, :should_retry?, :backoff_for
 end
