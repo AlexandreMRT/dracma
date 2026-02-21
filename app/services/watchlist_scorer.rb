@@ -6,20 +6,20 @@
 module WatchlistScorer
   extend T::Sig
 
-  sig { params(items: T::Array[T::Hash[Symbol, T.untyped]], min_score: Float, max_items: Integer).returns(T::Hash[Symbol, T::Array[T::Hash[Symbol, T.untyped]]]) }
+  sig { params(items: T::Array[T::Hash[T.any(Symbol, String), T.untyped]], min_score: Float, max_items: Integer).returns(T::Hash[Symbol, T::Array[T::Hash[Symbol, T.untyped]]]) }
   def self.build(items, min_score: 3.0, max_items: 12)
     candidates = []
     avoid_list = []
 
     items.each do |r|
-      tipo = r[:tipo] || r["tipo"]
+      tipo = value_for(r, :tipo)
       next unless %w[stock us_stock].include?(tipo)
 
       score = 0.0
       reasons = []
       risk_flags = []
 
-      rsi = r[:rsi_14] || r["rsi_14"]
+      rsi = value_for(r, :rsi_14)
       if rsi
         if rsi < 25
           score += 3.0
@@ -36,7 +36,7 @@ module WatchlistScorer
         end
       end
 
-      summary = r[:signal_summary] || r["signal_summary"]
+      summary = value_for(r, :signal_summary)
       if summary == "bullish"
         score += 2.0
         reasons << "bullish_trend"
@@ -45,37 +45,37 @@ module WatchlistScorer
         risk_flags << "bearish_trend"
       end
 
-      if (r[:signal_golden_cross] || r["signal_golden_cross"]) == 1
+      if value_for(r, :signal_golden_cross) == 1
         score += 1.0
         reasons << "golden_cross"
       end
 
-      if r[:above_ma_50] || r["above_ma_50"]
+      if value_for(r, :above_ma_50)
         score += 0.5
         reasons << "above_ma50"
       end
 
-      if r[:above_ma_200] || r["above_ma_200"]
+      if value_for(r, :above_ma_200)
         score += 0.5
         reasons << "above_ma200"
       end
 
-      if (r[:signal_52w_low] || r["signal_52w_low"]) == 1
+      if value_for(r, :signal_52w_low) == 1
         score += 1.0
         reasons << "near_52w_low"
       end
 
-      if (r[:signal_52w_high] || r["signal_52w_high"]) == 1
+      if value_for(r, :signal_52w_high) == 1
         score -= 1.0
         risk_flags << "near_52w_high"
       end
 
-      if (r[:signal_volume_spike] || r["signal_volume_spike"]) == 1
+      if value_for(r, :signal_volume_spike) == 1
         score += 0.5
         reasons << "volume_spike"
       end
 
-      news = r[:news_sentiment_combined] || r["news_sentiment_combined"]
+      news = value_for(r, :news_sentiment_combined)
       if news
         if news >= 0.4
           score += 2.0
@@ -92,7 +92,7 @@ module WatchlistScorer
         end
       end
 
-      var_ytd = r[:var_ytd] || r["var_ytd"]
+      var_ytd = value_for(r, :var_ytd)
       if var_ytd
         if var_ytd >= 20
           score += 1.0
@@ -104,8 +104,8 @@ module WatchlistScorer
       end
 
       entry = {
-        ticker: r[:ticker] || r["ticker"],
-        nome: r[:nome] || r["nome"],
+        ticker: value_for(r, :ticker),
+        nome: value_for(r, :nome),
         score: score.round(2),
         rsi_14: rsi,
         var_ytd: var_ytd,
@@ -126,5 +126,10 @@ module WatchlistScorer
     avoid_list.sort_by! { |x| x[:score] }
 
     { watchlist: candidates.first(max_items), avoid_list: avoid_list.first(max_items) }
+  end
+
+  sig { params(row: T::Hash[T.any(Symbol, String), T.untyped], key: Symbol).returns(T.untyped) }
+  def self.value_for(row, key)
+    row[key] || row[key.to_s]
   end
 end

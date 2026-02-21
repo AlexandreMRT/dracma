@@ -119,7 +119,8 @@ module ExporterService
 
     require "csv"
     CSV.open(filepath, "w", encoding: "UTF-8") do |csv|
-      csv << rows.first.keys
+      first_row = T.must(rows.first)
+      csv << first_row.keys
       rows.each { |r| csv << r.values }
     end
 

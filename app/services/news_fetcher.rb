@@ -38,12 +38,12 @@ class NewsFetcher
   # Fetch and analyze news sentiment for a stock.
   sig { params(ticker: String, company_name: String, brazilian: T::Boolean).returns(T::Hash[Symbol, T.untyped]) }
   def self.sentiment(ticker, company_name, brazilian: true)
-    result = {
+    result = T.let({
       news_sentiment_pt: nil, news_sentiment_en: nil, news_sentiment_combined: nil,
       news_count_pt: 0, news_count_en: 0,
       news_headline_pt: nil, news_headline_en: nil,
       news_sentiment_label: nil
-    }
+    }, T::Hash[Symbol, T.untyped])
 
     # English news
     en_news = english(ticker)

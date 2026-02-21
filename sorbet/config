@@ -2,3 +2,17 @@
 .
 --ignore=/tmp/
 --ignore=/vendor/bundle
+--ignore=sorbet/rbi/sorbet-typed
+--ignore=db/migrate
+--ignore=test
+--ignore=sorbet/rbi/gems/json@2.18.1.rbi
+--ignore=sorbet/rbi/gems/bigdecimal@4.0.1.rbi
+--ignore=sorbet/rbi/gems/msgpack@1.8.0.rbi
+--ignore=sorbet/rbi/gems/irb.rbi
+--ignore=sorbet/rbi/gems/net-http@0.9.1.rbi
+--ignore=sorbet/rbi/gems/logger@1.7.0.rbi
+--ignore=sorbet/rbi/gems/csv@3.3.5.rbi
+--ignore=sorbet/rbi/gems/matrix@0.4.3.rbi
+--ignore=sorbet/rbi/gems/net-protocol@0.2.2.rbi
+--ignore=sorbet/rbi/gems/rubyzip.rbi
+--ignore=sorbet/rbi/gems/pp@0.6.3.rbi

@@ -38,7 +38,7 @@ class PolymarketClient
     response = Net::HTTP.get_response(uri)
     return [] unless response.is_a?(Net::HTTPSuccess)
 
-    JSON.parse(response.body)
+    JSON.parse(T.must(response.body))
   rescue StandardError => e
     Rails.logger.warn("Polymarket fetch error: #{e.message}")
     []

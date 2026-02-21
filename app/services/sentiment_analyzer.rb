@@ -81,8 +81,17 @@ module SentimentAnalyzer
 
     return [ nil, nil ] if scores.empty?
 
-    avg = scores.sum / scores.size
-    headline = texts.first.is_a?(Hash) ? (texts.first[:title] || texts.first["title"]) : texts.first.to_s
+    avg = T.cast(scores.sum / scores.size.to_f, Float)
+
+    first_item = T.must(texts.first)
+    headline =
+      if first_item.is_a?(Hash)
+        raw_headline = first_item[:title] || first_item["title"]
+        raw_headline&.to_s
+      else
+        first_item.to_s
+      end
+
     [ avg, headline ]
   end
 

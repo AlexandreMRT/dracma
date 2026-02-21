@@ -175,14 +175,17 @@ class QuoteFetcher
   def fetch_news_for(result)
     return unless result
 
+    ticker = result[:ticker]
+
     news = NewsFetcher.sentiment(
       result[:ticker],
       result.dig(:info, :name) || "",
       brazilian: result[:brazilian]
     )
-    result[:quote_data].merge!(news)
+    quote_data = T.cast(result[:quote_data], T::Hash[Symbol, T.untyped])
+    quote_data.merge!(news)
   rescue StandardError => e
-    @logger.warn("News error for #{result[:ticker]}: #{e.message}")
+    @logger.warn("News error for #{ticker || 'unknown'}: #{e.message}")
   end
 
   sig { params(results: T::Array[T::Hash[Symbol, T.untyped]]).returns(Integer) }
@@ -270,7 +273,15 @@ class QuoteFetcher
 
   sig { params(quotes: T::Array[T::Hash[Symbol, T.untyped]], current: Float).returns(T::Hash[Symbol, T.untyped]) }
   def calculate_technicals(quotes, current)
-    closes = quotes.map { |q| q[:close] }
+    closes = T.let(
+      quotes.filter_map do |q|
+        close = q[:close]
+        next if close.nil?
+
+        close.to_f
+      end,
+      T::Array[Float]
+    )
     result = {}
 
     if closes.size >= 50
@@ -293,7 +304,19 @@ class QuoteFetcher
 
     # Volatility
     if closes.size >= 30
-      returns = closes.last(31).each_cons(2).map { |a, b| (b - a) / a }
+      recent_closes = T.let(closes.last(31), T::Array[Float])
+      returns = T.let(
+        recent_closes.each_cons(2).filter_map do |a, b|
+          prev_close = T.must(a)
+          curr_close = T.must(b)
+          next if prev_close.zero?
+
+          ((curr_close - prev_close) / prev_close).to_f
+        end,
+        T::Array[Float]
+      )
+      return result if returns.empty?
+
       mean = returns.sum / returns.size
       variance = returns.sum { |r| (r - mean)**2 } / returns.size
       result[:volatility_30d] = Math.sqrt(variance) * 100
@@ -303,7 +326,7 @@ class QuoteFetcher
     volumes = quotes.map { |q| q[:volume] }.compact
     if volumes.size >= 20
       avg_vol = volumes.last(20).sum / 20.0
-      current_vol = volumes.last
+      current_vol = T.must(volumes.last)
       result[:avg_volume_20d] = avg_vol
       result[:volume_ratio] = avg_vol > 0 ? current_vol / avg_vol : nil
     end
@@ -315,29 +338,31 @@ class QuoteFetcher
   def calculate_rsi(closes, period: 14)
     return nil if closes.size < period + 1
 
-    deltas = closes.last(period + 1).each_cons(2).map { |a, b| b - a }
+    recent = T.let(closes.last(period + 1), T::Array[Float])
+    deltas = recent.each_cons(2).map { |a, b| b.to_f - a.to_f }
     gains = deltas.select(&:positive?)
     losses = deltas.select(&:negative?).map(&:abs)
 
-    avg_gain = gains.any? ? gains.sum / period.to_f : 0
-    avg_loss = losses.any? ? losses.sum / period.to_f : 0
+    avg_gain = gains.any? ? gains.sum / period.to_f : 0.0
+    avg_loss = losses.any? ? losses.sum / period.to_f : 0.0
 
     return 100.0 if avg_loss.zero?
 
     rs = avg_gain / avg_loss
-    100 - (100 / (1 + rs))
+    100.0 - (100.0 / (1.0 + rs))
   end
 
   sig { params(quotes: T::Array[T::Hash[Symbol, T.untyped]], target_date: T.untyped).returns(T.nilable(Float)) }
   def price_at(quotes, target_date)
     target_date = target_date.to_date if target_date.respond_to?(:to_date)
-    quotes.select { |q| q[:date] <= target_date }.last&.dig(:close)
+    price = quotes.select { |q| q[:date] <= target_date }.last&.dig(:close)
+    price&.to_f
   end
 
   sig { params(current: Float, previous: T.nilable(Float)).returns(T.nilable(Float)) }
   def change_pct(current, previous)
     return nil unless previous && previous > 0
 
-    ((current - previous) / previous) * 100
+    (((current - previous) / previous) * 100).to_f
   end
 end
