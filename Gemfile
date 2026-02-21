@@ -68,4 +68,4 @@ gem "tapioca", "~> 0.17.10", require: false
 gem "jwt"
 gem "omniauth-google-oauth2"
 gem "csv"
-gem "minitest", "~> 5.25"
+gem "minitest", "~> 6.0"

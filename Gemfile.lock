@@ -172,7 +172,8 @@ GEM
     marcel (1.1.0)
     matrix (0.4.3)
     mini_mime (1.1.5)
-    minitest (5.27.0)
+    minitest (6.0.1)
+      prism (~> 1.5)
     msgpack (1.8.0)
     multi_xml (0.8.1)
       bigdecimal (>= 3.1, < 5)
@@ -483,7 +484,7 @@ DEPENDENCIES
   importmap-rails
   jwt
   kamal
-  minitest (~> 5.25)
+  minitest (~> 6.0)
   omniauth-google-oauth2
   pg (~> 1.1)
   propshaft
