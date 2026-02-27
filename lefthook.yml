@@ -1,0 +1,20 @@
+# Lefthook — Git hook manager
+# Enforces the validation checklist documented in CONTRIBUTING.md
+# Install hooks: bundle exec lefthook install
+
+pre-commit:
+  parallel: true
+  commands:
+    rubocop:
+      glob: "*.rb"
+      run: bundle exec rubocop --force-exclusion {staged_files}
+      stage_fixed: true
+
+pre-push:
+  commands:
+    test:
+      run: bin/rails test
+    brakeman:
+      run: bin/brakeman --no-pager
+    sorbet:
+      run: bundle exec srb tc
