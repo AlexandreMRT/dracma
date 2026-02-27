@@ -1,4 +1,18 @@
 ENV["RAILS_ENV"] ||= "test"
+
+require "simplecov"
+SimpleCov.start "rails" do
+  enable_coverage :branch
+  minimum_coverage line: 70, branch: 60
+  add_filter "/sorbet/"
+  add_filter "/vendor/"
+  add_group "Services", "app/services"
+  add_group "Controllers", "app/controllers"
+  add_group "Models", "app/models"
+  add_group "Jobs", "app/jobs"
+  add_group "Helpers", "app/helpers"
+end
+
 require_relative "../config/environment"
 require "rails/test_help"
 require "webmock/minitest"
