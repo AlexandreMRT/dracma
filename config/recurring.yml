@@ -23,3 +23,8 @@ production:
     class: GenerateReportsJob
     queue: default
     schedule: "30 18 * * 1-5"
+
+  clean_exports:
+    class: CleanExportsJob
+    queue: default
+    schedule: every Sunday at 3am
