@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -e
+
+# bin/check — Run all validation checks before committing.
+# This enforces the same checklist documented in CONTRIBUTING.md:
+#   1. Tests (Minitest)
+#   2. Linting (RuboCop)
+#   3. Security (Brakeman)
+#   4. Type checking (Sorbet)
+#
+# Usage:
+#   bin/check          # Run all checks
+#   bin/check --quick  # Skip tests (rubocop + brakeman + sorbet only)
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BOLD='\033[1m'
+RESET='\033[0m'
+
+pass() { echo -e "${GREEN}✓ $1 passed${RESET}"; }
+fail() { echo -e "${RED}✗ $1 failed${RESET}"; exit 1; }
+
+if [ "$1" != "--quick" ]; then
+  echo -e "${BOLD}[1/4] Running tests...${RESET}"
+  bin/rails test && pass "Tests" || fail "Tests"
+else
+  echo -e "${BOLD}[1/4] Skipping tests (--quick mode)${RESET}"
+fi
+
+echo -e "${BOLD}[2/4] Running RuboCop...${RESET}"
+bundle exec rubocop && pass "RuboCop" || fail "RuboCop"
+
+echo -e "${BOLD}[3/4] Running Brakeman...${RESET}"
+bin/brakeman --no-pager && pass "Brakeman" || fail "Brakeman"
+
+echo -e "${BOLD}[4/4] Running Sorbet type check...${RESET}"
+bundle exec srb tc && pass "Sorbet" || fail "Sorbet"
+
+echo ""
+echo -e "${GREEN}${BOLD}All checks passed! Safe to commit.${RESET}"
