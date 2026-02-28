@@ -6,7 +6,8 @@ class CleanExportsJob < ApplicationJob
   # Delete export files older than 30 days to prevent disk space leaks.
   # Accepts an optional exports_dir for testability.
   def perform(max_age_days: 30, exports_dir: nil)
-    exports_dir = Pathname.new(exports_dir || Rails.root.join("exports"))
+    exports_dir ||= Rails.root.join("exports")
+    exports_dir = Pathname.new(exports_dir.to_s)
     return unless exports_dir.exist?
 
     cutoff = max_age_days.days.ago
