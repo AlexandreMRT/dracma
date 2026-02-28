@@ -1,50 +1,57 @@
 # frozen_string_literal: true
 # typed: true
 
+require "concurrent"
+
 # Main quote fetching service. Orchestrates Yahoo Finance, news, benchmarks,
 # signals, and persists results to the database.
-# Ported from Python fetcher.py.
+# Uses concurrent-ruby thread pools for parallel HTTP fetching.
+# Ported from Python fetcher.py (which uses ThreadPoolExecutor with 8 workers).
 class QuoteFetcher
   extend T::Sig
+
+  # Thread pool sizes for parallel fetching
+  QUOTE_WORKERS = T.let(8, Integer)
+  NEWS_WORKERS = T.let(5, Integer)
+
+  # Per-future timeouts (seconds) — prevents hanging when Yahoo Finance rate-limits
+  QUOTE_TIMEOUT = T.let(90, Integer)
+  NEWS_TIMEOUT = T.let(30, Integer)
+  PREREQ_TIMEOUT = T.let(30, Integer)
 
   sig { void }
   def initialize
     @logger = Rails.logger
-    @usd_brl = nil
-    @benchmarks = {}
+    @usd_brl = T.let(nil, T.nilable(Float))
+    @benchmarks = T.let({}, T::Hash[String, T.untyped])
   end
 
-  # Fetch and save quotes for all tracked assets.
+  # Fetch and save quotes for all tracked assets using parallel thread pools.
+  # Phase 1: Fetch USD/BRL + benchmarks concurrently (3 futures)
+  # Phase 2: Fetch all asset quotes in parallel (8 workers)
+  # Phase 3: Fetch news sentiment in parallel (5 workers)
+  # Phase 4: Save results to database (sequential)
   sig { returns([ Integer, Integer ]) }
   def fetch_all
-    @logger.info("=== QuoteFetcher: starting full fetch ===")
+    @logger.info("=== QuoteFetcher: starting parallel fetch ===")
     start = Time.current
 
-    @usd_brl = fetch_usd_brl
-    @benchmarks = fetch_benchmarks
+    # Phase 1: Prerequisites — fetch USD/BRL and benchmarks concurrently
+    fetch_prerequisites
     @logger.info("USD/BRL: #{@usd_brl}")
 
     catalog = build_asset_list
-    @logger.info("Assets to fetch: #{catalog.size}")
+    @logger.info("Assets to fetch: #{catalog.size} (#{QUOTE_WORKERS} workers)")
 
-    results = []
-    errors = 0
+    # Phase 2: Fetch all asset quotes in parallel
+    results, errors = fetch_quotes_parallel(catalog)
+    @logger.info("Quotes fetched: #{results.size} ok, #{errors} errors")
 
-    catalog.each do |entry|
-      result = fetch_single(entry)
-      if result
-        results << result
-      else
-        errors += 1
-      end
-    end
+    # Phase 3: Fetch news for stocks in parallel
+    stock_results = results.select { |r| %w[stock us_stock].include?(r[:type]) }
+    fetch_news_parallel(stock_results)
 
-    # Fetch news for stocks only
-    results.select { |r| %w[stock us_stock].include?(r[:asset_type]) }.each do |r|
-      fetch_news_for(r)
-    end
-
-    # Save to database
+    # Phase 4: Save to database (sequential — DB writes don't benefit from parallelism)
     saved = save_all(results)
 
     elapsed = Time.current - start
@@ -54,6 +61,108 @@ class QuoteFetcher
 
   private
 
+  # Phase 1: Fetch USD/BRL rate and benchmark indexes concurrently.
+  # Uses value! to propagate exceptions (including timeouts), with per-future
+  # rescue so one failing prerequisite doesn't block the others.
+  sig { void }
+  def fetch_prerequisites
+    usd_future = T.unsafe(Concurrent::Promises).future { fetch_usd_brl }
+    ibov_future = T.unsafe(Concurrent::Promises).future { fetch_single_benchmark("^BVSP", "ibov") }
+    sp500_future = T.unsafe(Concurrent::Promises).future { fetch_single_benchmark("^GSPC", "sp500") }
+
+    ibov_data = {}
+    sp500_data = {}
+
+    begin
+      @usd_brl = T.unsafe(usd_future).value!(PREREQ_TIMEOUT)
+    rescue StandardError => e
+      @logger.warn("USD/BRL prerequisite error: #{e.message}")
+    end
+
+    begin
+      ibov_data = T.unsafe(ibov_future).value!(PREREQ_TIMEOUT) || {}
+    rescue StandardError => e
+      @logger.warn("IBOV prerequisite error: #{e.message}")
+    end
+
+    begin
+      sp500_data = T.unsafe(sp500_future).value!(PREREQ_TIMEOUT) || {}
+    rescue StandardError => e
+      @logger.warn("S&P 500 prerequisite error: #{e.message}")
+    end
+
+    # Fallback to a sane default if USD/BRL is missing or invalid
+    @usd_brl = 6.20 if @usd_brl.nil? || @usd_brl <= 0.0
+
+    @benchmarks = {}.merge(ibov_data).merge(sp500_data)
+  rescue StandardError => e
+    @logger.warn("Prerequisites error: #{e.message}")
+    @usd_brl = 6.20 if @usd_brl.nil?
+    @benchmarks = {} if @benchmarks.empty?
+  end
+
+  # Phase 2: Fetch all asset quotes using a fixed-size thread pool.
+  # Uses value! per future so timeouts raise (instead of silently returning nil
+  # while the underlying work continues). pool.kill is called when graceful
+  # termination times out, so lingering threads can't accumulate.
+  sig { params(catalog: T::Array[T::Hash[Symbol, T.untyped]]).returns([ T::Array[T::Hash[Symbol, T.untyped]], Integer ]) }
+  def fetch_quotes_parallel(catalog)
+    pool = T.unsafe(Concurrent::FixedThreadPool).new(QUOTE_WORKERS)
+    futures = catalog.map do |entry|
+      T.unsafe(Concurrent::Promises).future_on(pool) { fetch_single(entry) }
+    end
+
+    results = T.let([], T::Array[T::Hash[Symbol, T.untyped]])
+    errors = T.let(0, Integer)
+
+    futures.each do |future|
+      begin
+        result = T.unsafe(future).value!(QUOTE_TIMEOUT)
+        if result
+          results << result
+        else
+          errors += 1
+        end
+      rescue StandardError => e
+        errors += 1
+        @logger.warn("Quote fetch error: #{e.message}")
+      end
+    end
+
+    [ results, errors ]
+  ensure
+    T.unsafe(pool)&.shutdown
+    unless T.unsafe(pool)&.wait_for_termination(30)
+      @logger.warn("Quote pool did not terminate gracefully — killing threads")
+      T.unsafe(pool)&.kill
+    end
+  end
+
+  # Phase 3: Fetch news sentiment for stock results using a fixed-size thread pool.
+  # Uses value! per future with rescue so one slow RSS feed can't block others.
+  # pool.kill is the fallback when graceful shutdown times out.
+  sig { params(stock_results: T::Array[T::Hash[Symbol, T.untyped]]).void }
+  def fetch_news_parallel(stock_results)
+    return if stock_results.empty?
+
+    pool = T.unsafe(Concurrent::FixedThreadPool).new(NEWS_WORKERS)
+    futures = stock_results.map do |result|
+      T.unsafe(Concurrent::Promises).future_on(pool) { fetch_news_for(result) }
+    end
+
+    futures.each do |f|
+      T.unsafe(f).value!(NEWS_TIMEOUT)
+    rescue StandardError => e
+      @logger.warn("News fetch error: #{e.message}")
+    end
+  ensure
+    T.unsafe(pool)&.shutdown
+    unless T.unsafe(pool)&.wait_for_termination(30)
+      @logger.warn("News pool did not terminate gracefully — killing threads")
+      T.unsafe(pool)&.kill
+    end
+  end
+
   sig { returns(Float) }
   def fetch_usd_brl
     data = YahooFinanceClient.history("USDBRL=X", range: "5d")
@@ -62,25 +171,25 @@ class QuoteFetcher
     6.20
   end
 
-  sig { returns(T::Hash[String, T.untyped]) }
-  def fetch_benchmarks
-    result = {}
-    { "^BVSP" => "ibov", "^GSPC" => "sp500" }.each do |ticker, prefix|
-      data = YahooFinanceClient.history(ticker, range: "1y")
-      quotes = data[:quotes]
-      next if quotes.empty?
+  # Fetch a single benchmark index and return its change hash.
+  sig { params(ticker: String, prefix: String).returns(T::Hash[String, T.untyped]) }
+  def fetch_single_benchmark(ticker, prefix)
+    data = YahooFinanceClient.history(ticker, range: "1y")
+    quotes = data[:quotes]
+    return {} if quotes.empty?
 
-      current = quotes.last[:close]
-      today = quotes.last[:date]
+    current = quotes.last[:close]
+    today = quotes.last[:date]
 
-      result["#{prefix}_change_1d"] = change_pct(current, price_at(quotes, today - 1))
-      result["#{prefix}_change_1w"] = change_pct(current, price_at(quotes, today - 7))
-      result["#{prefix}_change_1m"] = change_pct(current, price_at(quotes, today - 30))
-      result["#{prefix}_change_ytd"] = change_pct(current, price_at(quotes, Date.new(today.year, 1, 1)))
-    rescue StandardError => e
-      @logger.warn("Benchmark #{ticker} error: #{e.message}")
-    end
-    result
+    {
+      "#{prefix}_change_1d" => change_pct(current, price_at(quotes, today - 1)),
+      "#{prefix}_change_1w" => change_pct(current, price_at(quotes, today - 7)),
+      "#{prefix}_change_1m" => change_pct(current, price_at(quotes, today - 30)),
+      "#{prefix}_change_ytd" => change_pct(current, price_at(quotes, Date.new(today.year, 1, 1)))
+    }
+  rescue StandardError => e
+    @logger.warn("Benchmark #{ticker} error: #{e.message}")
+    {}
   end
 
   sig { returns(T::Array[T::Hash[Symbol, T.untyped]]) }

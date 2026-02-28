@@ -40,6 +40,7 @@
 - [x] **RuboCop** — Rails Omakase + rubocop-minitest
 - [x] **Brakeman** — static security analysis
 - [x] **Test suite** — Minitest + WebMock + fixtures, parallel execution
+- [x] **Parallel quote fetching** — `concurrent-ruby` thread pools (8 quote workers, 5 news workers), benchmarks fetched concurrently
 - [x] Stimulus controllers: flash (auto-dismiss), auto_refresh, confirm, sortable
 - [x] JSON API namespace: `/api/quotes`, `/api/signals`, `/api/scoring`
 
@@ -57,22 +58,17 @@
 
 ## Priority Features (Next Up)
 
-### 1. Parallel Quote Fetching ⚡
-**Priority: HIGH | Effort: MEDIUM**
+### ~~1. Parallel Quote Fetching ⚡~~ ✅ DONE
+**Implemented in v1.1 (2026-02-28)**
 
-The Python b3_tracker fetches all 128 assets in ~30s using ThreadPoolExecutor with 8 workers. Dracma currently fetches sequentially, which is significantly slower.
-
-**Implementation notes:**
-- Use Ruby's `Concurrent::ThreadPoolExecutor` from the `concurrent-ruby` gem (already a Rails dependency)
-- Or use the `parallel` gem for simpler API
-- Fetch benchmarks first (3 concurrent), then assets (8 workers), then news (5 workers)
-- Maintain rate limiting and backoff per-thread
-- Target: ~30-45s for all 128 assets (vs ~4min sequential)
-
-**Files to modify:**
-- `app/services/quote_fetcher.rb` (refactor `fetch_all` to use thread pool)
-- `app/services/yahoo_finance_client.rb` (ensure thread-safety)
-- `Gemfile` (add `parallel` gem if chosen over `concurrent-ruby`)
+Used `concurrent-ruby` (ActiveSupport transitive dependency) with `Concurrent::Promises` and `Concurrent::FixedThreadPool`.
+- Phase 1: USD/BRL + 2 benchmarks fetched concurrently (3 futures)
+- Phase 2: All asset quotes via 8-worker thread pool
+- Phase 3: News sentiment via 5-worker thread pool
+- Phase 4: Sequential DB save
+- DB connection pool increased from 5 to 10
+- Thread pools properly shut down in `ensure` blocks
+- Full test coverage with WebMock in `test/services/quote_fetcher_test.rb`
 
 ---
 

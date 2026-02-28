@@ -17,7 +17,8 @@ default: &default
   encoding: unicode
   # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # Pool increased from 5 to 10 to support parallel quote fetching (8 workers + main thread + headroom)
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 10 } %>
 
 
 development:
