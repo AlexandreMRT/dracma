@@ -16,7 +16,7 @@ class CleanExportsJobTest < ActiveJob::TestCase
       File.write(new_file, "new data")
 
       # Backdate the old file to 31 days ago
-      FileUtils.touch(old_file, mtime: 31.days.ago)
+      FileUtils.touch(old_file, mtime: 31.days.ago.to_time)
 
       stub_exports_dir(dir) do
         CleanExportsJob.perform_now
@@ -31,7 +31,7 @@ class CleanExportsJobTest < ActiveJob::TestCase
     Dir.mktmpdir do |dir|
       file = File.join(dir, "report.csv")
       File.write(file, "data")
-      FileUtils.touch(file, mtime: 8.days.ago)
+      FileUtils.touch(file, mtime: 8.days.ago.to_time)
 
       stub_exports_dir(dir) do
         CleanExportsJob.perform_now(max_age_days: 7)
@@ -51,7 +51,7 @@ class CleanExportsJobTest < ActiveJob::TestCase
     Dir.mktmpdir do |dir|
       subdir = File.join(dir, "subdir")
       FileUtils.mkdir(subdir)
-      FileUtils.touch(subdir, mtime: 60.days.ago)
+      FileUtils.touch(subdir, mtime: 60.days.ago.to_time)
 
       stub_exports_dir(dir) do
         CleanExportsJob.perform_now
