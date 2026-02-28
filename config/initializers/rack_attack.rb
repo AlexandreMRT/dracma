@@ -25,9 +25,11 @@ class Rack::Attack
 
   # --- Safelist ---
 
-  # Allow localhost in development
-  safelist("allow-localhost") do |req|
-    req.ip == "127.0.0.1" || req.ip == "::1"
+  # Allow localhost in development and test only
+  if Rails.env.development? || Rails.env.test?
+    safelist("allow-localhost") do |req|
+      req.ip == "127.0.0.1" || req.ip == "::1"
+    end
   end
 
   # --- Custom Responses ---
@@ -41,5 +43,5 @@ class Rack::Attack
   end
 end
 
-# Ensure Rack::Attack is added to the middleware stack
+# Rack::Attack middleware is registered via config/application.rb
 Rails.application.config.middleware.use Rack::Attack
