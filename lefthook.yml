@@ -1,5 +1,5 @@
 # Lefthook — Git hook manager
-# Enforces the validation checklist documented in CONTRIBUTING.md
+# Lint staged files on commit. Full validation runs in CI.
 # Install hooks: bundle exec lefthook install
 
 pre-commit:
@@ -9,12 +9,3 @@ pre-commit:
       glob: "**/*.rb"
       run: bundle exec rubocop --force-exclusion {staged_files}
       stage_fixed: true
-
-pre-push:
-  commands:
-    test:
-      run: bin/rails test
-    brakeman:
-      run: bin/brakeman --no-pager
-    sorbet:
-      run: bin/srb-check
