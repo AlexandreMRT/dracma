@@ -161,8 +161,7 @@ bundle exec srb tc            # Type checking (0 errors)
 
 **Automated enforcement:**
 - **Lefthook pre-commit hook** — runs RuboCop on staged files automatically
-- **Lefthook pre-push hook** — runs full test suite + brakeman + sorbet before push
-- **CI pipeline** — 5 jobs: `scan_ruby` (Brakeman), `scan_js` (importmap audit), `lint` (RuboCop), `typecheck` (Sorbet), `test` (Minitest + system tests)
+- **CI pipeline** — 5 jobs: `scan_ruby` (Brakeman), `scan_js` (importmap audit), `lint` (RuboCop), `typecheck` (Sorbet), `test` (Minitest + system tests). This is the real gate — PRs cannot merge unless CI is green.
 - Install hooks after fresh clone: `bundle exec lefthook install` (also runs via `bin/setup`)
 
 ---
