@@ -40,3 +40,6 @@ class Rack::Attack
     ]
   end
 end
+
+# Ensure Rack::Attack is added to the middleware stack
+Rails.application.config.middleware.use Rack::Attack
