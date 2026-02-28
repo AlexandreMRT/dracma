@@ -43,5 +43,5 @@ class Rack::Attack
   end
 end
 
-# Rack::Attack middleware is registered via config/application.rb
+# Register Rack::Attack middleware in the Rails stack
 Rails.application.config.middleware.use Rack::Attack
