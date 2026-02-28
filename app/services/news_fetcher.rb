@@ -92,7 +92,12 @@ class NewsFetcher
     url = "#{GOOGLE_NEWS_RSS}?q=#{encoded}&hl=#{hl}&gl=#{gl}&ceid=#{ceid}"
     uri = URI(url)
 
-    response = Net::HTTP.get_response(uri)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = uri.scheme == "https"
+    http.open_timeout = 10
+    http.read_timeout = 15
+    request = Net::HTTP::Get.new(uri)
+    response = http.request(request)
     return [] unless response.is_a?(Net::HTTPSuccess)
 
     doc = Nokogiri::XML(response.body)

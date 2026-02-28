@@ -9,11 +9,12 @@ class FetchQuotesJobTest < ActiveJob::TestCase
 
   test "calls QuoteFetcher#fetch_all" do
     called = false
+    original = QuoteFetcher.instance_method(:fetch_all)
     QuoteFetcher.define_method(:fetch_all) { called = true }
     FetchQuotesJob.perform_now
 
     assert called
   ensure
-    QuoteFetcher.define_method(:fetch_all) { raise "not stubbed" }
+    QuoteFetcher.define_method(:fetch_all, original)
   end
 end
