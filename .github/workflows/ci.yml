@@ -71,17 +71,7 @@ jobs:
           bundler-cache: true
 
       - name: Run Sorbet type checking (app code only)
-        run: |
-          set +e
-          output=$(bundle exec srb tc 2>&1)
-          echo "$output"
-          # Fail only if there are errors in app/ code (not generated RBIs)
-          app_errors=$(echo "$output" | grep -c "^app/")
-          if [ "$app_errors" -gt 0 ]; then
-            echo "::error::Found $app_errors type errors in app/ code"
-            exit 1
-          fi
-          exit 0
+        run: bin/srb-check
 
   test:
     runs-on: ubuntu-latest

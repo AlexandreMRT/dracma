@@ -34,7 +34,7 @@ echo -e "${BOLD}[3/4] Running Brakeman...${RESET}"
 bin/brakeman --no-pager && pass "Brakeman" || fail "Brakeman"
 
 echo -e "${BOLD}[4/4] Running Sorbet type check...${RESET}"
-bundle exec srb tc && pass "Sorbet" || fail "Sorbet"
+bin/srb-check && pass "Sorbet" || fail "Sorbet"
 
 echo ""
 echo -e "${GREEN}${BOLD}All checks passed! Safe to commit.${RESET}"

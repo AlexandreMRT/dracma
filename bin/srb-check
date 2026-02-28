@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Sorbet type checker — fails only on errors in app/ code.
+# Generated gem RBIs have known errors that are safe to ignore
+# until the next `bin/tapioca gems` regeneration.
+set -o pipefail
+
+output=$(bundle exec srb tc 2>&1)
+echo "$output"
+
+app_errors=$(echo "$output" | grep -c "^app/" || true)
+if [ "$app_errors" -gt 0 ]; then
+  echo ""
+  echo "❌ Found $app_errors type errors in app/ code"
+  exit 1
+fi
+
+echo ""
+echo "✅ No type errors in app/ code"
+exit 0

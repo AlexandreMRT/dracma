@@ -6,7 +6,7 @@ pre-commit:
   parallel: true
   commands:
     rubocop:
-      glob: "*.rb"
+      glob: "**/*.rb"
       run: bundle exec rubocop --force-exclusion {staged_files}
       stage_fixed: true
 
@@ -17,4 +17,4 @@ pre-push:
     brakeman:
       run: bin/brakeman --no-pager
     sorbet:
-      run: bundle exec srb tc
+      run: bin/srb-check
