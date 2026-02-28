@@ -18,8 +18,8 @@ Rails.application.configure do
     policy.form_action :self, "https://accounts.google.com"
   end
 
-  # Generate session nonces for permitted importmap and inline scripts.
-  config.content_security_policy_nonce_generator = ->(request) { request.session.id.to_s }
+  # Generate cryptographically secure nonces for permitted importmap and inline scripts.
+  config.content_security_policy_nonce_generator = ->(_request) { SecureRandom.base64(16) }
   config.content_security_policy_nonce_directives = %w[script-src]
 
   # Start in report-only mode to catch violations without breaking the app.

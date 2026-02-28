@@ -13,6 +13,9 @@ SimpleCov.start "rails" do
   add_group "Helpers", "app/helpers"
 end
 
+# Merge coverage data from parallel test processes
+SimpleCov.use_merging true
+
 require_relative "../config/environment"
 require "rails/test_help"
 require "webmock/minitest"
