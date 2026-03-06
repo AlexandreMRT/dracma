@@ -1,17 +1,21 @@
 # frozen_string_literal: true
 # typed: true
 
+require "concurrent"
+
 # Main quote fetching service. Orchestrates Yahoo Finance, news, benchmarks,
 # signals, and persists results to the database.
 # Ported from Python fetcher.py.
 class QuoteFetcher
   extend T::Sig
 
+  BENCHMARK_FETCH_WORKERS = 3
+  ASSET_FETCH_WORKERS = 8
+  NEWS_FETCH_WORKERS = 5
+
   sig { void }
   def initialize
     @logger = Rails.logger
-    @usd_brl = nil
-    @benchmarks = {}
   end
 
   # Fetch and save quotes for all tracked assets.
@@ -20,28 +24,32 @@ class QuoteFetcher
     @logger.info("=== QuoteFetcher: starting full fetch ===")
     start = Time.current
 
-    @usd_brl = fetch_usd_brl
-    @benchmarks = fetch_benchmarks
-    @logger.info("USD/BRL: #{@usd_brl}")
+    usd_brl = fetch_usd_brl
+    benchmarks = fetch_benchmarks
+    @logger.info("USD/BRL: #{usd_brl}")
 
     catalog = build_asset_list
     @logger.info("Assets to fetch: #{catalog.size}")
 
-    results = []
-    errors = 0
-
-    catalog.each do |entry|
-      result = fetch_single(entry)
-      if result
-        results << result
-      else
-        errors += 1
-      end
-    end
+    @logger.info("Asset fetch workers: #{worker_count(catalog.size, ASSET_FETCH_WORKERS)}")
+    results = T.cast(
+      parallel_filter_map(catalog, workers: ASSET_FETCH_WORKERS) do |entry|
+        fetch_single(entry, usd_brl: usd_brl, benchmarks: benchmarks)
+      end,
+      T::Array[T::Hash[Symbol, T.untyped]],
+    )
+    errors = catalog.size - results.size
 
     # Fetch news for stocks only
-    results.select { |r| %w[stock us_stock].include?(r[:asset_type]) }.each do |r|
-      fetch_news_for(r)
+    stock_results = T.let(
+      results.select { |result| %w[stock us_stock].include?(result[:type].to_s) },
+      T::Array[T::Hash[Symbol, T.untyped]],
+    )
+    if stock_results.any?
+      @logger.info("News fetch workers: #{worker_count(stock_results.size, NEWS_FETCH_WORKERS)}")
+      parallel_each(stock_results, workers: NEWS_FETCH_WORKERS) do |result|
+        fetch_news_for(result)
+      end
     end
 
     # Save to database
@@ -64,23 +72,23 @@ class QuoteFetcher
 
   sig { returns(T::Hash[String, T.untyped]) }
   def fetch_benchmarks
-    result = {}
-    { "^BVSP" => "ibov", "^GSPC" => "sp500" }.each do |ticker, prefix|
-      data = YahooFinanceClient.history(ticker, range: "1y")
-      quotes = data[:quotes]
-      next if quotes.empty?
+    benchmark_sources = T.let([
+      { ticker: "^BVSP", prefix: "ibov" },
+      { ticker: "^GSPC", prefix: "sp500" }
+    ], T::Array[T::Hash[Symbol, String]])
 
-      current = quotes.last[:close]
-      today = quotes.last[:date]
+    benchmark_rows = T.cast(
+      parallel_filter_map(benchmark_sources, workers: BENCHMARK_FETCH_WORKERS) do |source|
+        fetch_benchmark(T.must(source[:ticker]), T.must(source[:prefix]))
+      end,
+      T::Array[T::Hash[String, T.untyped]],
+    )
 
-      result["#{prefix}_change_1d"] = change_pct(current, price_at(quotes, today - 1))
-      result["#{prefix}_change_1w"] = change_pct(current, price_at(quotes, today - 7))
-      result["#{prefix}_change_1m"] = change_pct(current, price_at(quotes, today - 30))
-      result["#{prefix}_change_ytd"] = change_pct(current, price_at(quotes, Date.new(today.year, 1, 1)))
-    rescue StandardError => e
-      @logger.warn("Benchmark #{ticker} error: #{e.message}")
+    benchmark_rows.each_with_object({}) do |row, result|
+      row.each do |key, value|
+        result[key] = value
+      end
     end
-    result
   end
 
   sig { returns(T::Array[T::Hash[Symbol, T.untyped]]) }
@@ -94,8 +102,34 @@ class QuoteFetcher
     list
   end
 
-  sig { params(entry: T::Hash[Symbol, T.untyped]).returns(T.nilable(T::Hash[Symbol, T.untyped])) }
-  def fetch_single(entry)
+  sig { params(ticker: String, prefix: String).returns(T.nilable(T::Hash[String, T.untyped])) }
+  def fetch_benchmark(ticker, prefix)
+    data = YahooFinanceClient.history(ticker, range: "1y")
+    quotes = data[:quotes]
+    return nil if quotes.empty?
+
+    current = quotes.last[:close]
+    today = quotes.last[:date]
+
+    {
+      "#{prefix}_change_1d" => change_pct(current, price_at(quotes, today - 1)),
+      "#{prefix}_change_1w" => change_pct(current, price_at(quotes, today - 7)),
+      "#{prefix}_change_1m" => change_pct(current, price_at(quotes, today - 30)),
+      "#{prefix}_change_ytd" => change_pct(current, price_at(quotes, Date.new(today.year, 1, 1)))
+    }
+  rescue StandardError => e
+    @logger.warn("Benchmark #{ticker} error: #{e.message}")
+    nil
+  end
+
+  sig do
+    params(
+      entry: T::Hash[Symbol, T.untyped],
+      usd_brl: Float,
+      benchmarks: T::Hash[String, T.untyped],
+    ).returns(T.nilable(T::Hash[Symbol, T.untyped]))
+  end
+  def fetch_single(entry, usd_brl:, benchmarks:)
     ticker = entry[:ticker]
     data = YahooFinanceClient.history(ticker)
     quotes = data[:quotes]
@@ -141,11 +175,11 @@ class QuoteFetcher
     end
 
     # Benchmark comparison
-    @benchmarks.each { |k, v| quote_data[k.to_sym] = v }
+    benchmarks.each { |k, v| quote_data[k.to_sym] = v }
     %w[1d 1m ytd].each do |p|
       chg = quote_data[:"change_#{p}"]
-      quote_data[:"vs_ibov_#{p}"] = chg && @benchmarks["ibov_change_#{p}"] ? chg - @benchmarks["ibov_change_#{p}"] : nil
-      quote_data[:"vs_sp500_#{p}"] = chg && @benchmarks["sp500_change_#{p}"] ? chg - @benchmarks["sp500_change_#{p}"] : nil
+      quote_data[:"vs_ibov_#{p}"] = chg && benchmarks["ibov_change_#{p}"] ? chg - benchmarks["ibov_change_#{p}"] : nil
+      quote_data[:"vs_sp500_#{p}"] = chg && benchmarks["sp500_change_#{p}"] ? chg - benchmarks["sp500_change_#{p}"] : nil
     end
 
     # Signals
@@ -156,13 +190,13 @@ class QuoteFetcher
     case entry[:type]
     when "stock"
       price_brl = current
-      price_usd = current / @usd_brl
+      price_usd = current / usd_brl
     when "currency"
       price_brl = current
       price_usd = 1.0
     else
       price_usd = current
-      price_brl = current * @usd_brl
+      price_brl = current * usd_brl
     end
 
     entry.merge(quote_data: quote_data, price_brl: price_brl, price_usd: price_usd)
@@ -211,6 +245,66 @@ class QuoteFetcher
       @logger.error("Save error #{r[:ticker]}: #{e.message}")
     end
     saved
+  end
+
+  sig { params(total_items: Integer, max_workers: Integer).returns(Integer) }
+  def worker_count(total_items, max_workers)
+    [ total_items, max_workers ].min
+  end
+
+  sig do
+    params(
+      items: T::Array[T.untyped],
+      workers: Integer,
+      blk: T.proc.params(arg0: T.untyped).returns(T.untyped),
+    ).returns(T::Array[T.untyped])
+  end
+  def parallel_filter_map(items, workers:, &blk)
+    return [] if items.empty?
+
+    executor = T.let(nil, T.nilable(Concurrent::FixedThreadPool))
+    executor = Concurrent::FixedThreadPool.new(worker_count(items.size, workers))
+
+    futures = items.map do |item|
+      Concurrent::Promises.future_on(executor, item) do |value|
+        Rails.application.executor.wrap do
+          blk.call(value)
+        end
+      end
+    end
+
+    futures.filter_map { |future| future.value! }
+  ensure
+    executor&.shutdown
+    executor&.wait_for_termination(5)
+  end
+
+  sig do
+    params(
+      items: T::Array[T.untyped],
+      workers: Integer,
+      blk: T.proc.params(arg0: T.untyped).void,
+    ).void
+  end
+  def parallel_each(items, workers:, &blk)
+    return if items.empty?
+
+    executor = T.let(nil, T.nilable(Concurrent::FixedThreadPool))
+    executor = Concurrent::FixedThreadPool.new(worker_count(items.size, workers))
+
+    futures = items.map do |item|
+      Concurrent::Promises.future_on(executor, item) do |value|
+        Rails.application.executor.wrap do
+          blk.call(value)
+          true
+        end
+      end
+    end
+
+    futures.each { |future| future.value! }
+  ensure
+    executor&.shutdown
+    executor&.wait_for_termination(5)
   end
 
   sig { params(type: String).returns(String) }

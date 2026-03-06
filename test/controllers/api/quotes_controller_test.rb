@@ -33,6 +33,26 @@ module Api
       assert_equal "Invalid date format", body["error"]
     end
 
+    test "show returns asset detail by ticker" do
+      get "/api/quotes/PETR4", as: :json
+
+      assert_response :success
+      body = JSON.parse(response.body)
+
+      assert_equal "PETR4", body.dig("asset", "ticker")
+      assert_equal "neutral", body.dig("signals", "summary")
+      assert_equal 1, body.fetch("history").size
+    end
+
+    test "show returns not found for missing asset" do
+      get "/api/quotes/UNKNOWN", as: :json
+
+      assert_response :not_found
+      body = JSON.parse(response.body)
+
+      assert_equal "Asset not found", body["error"]
+    end
+
     test "requires authentication" do
       reset!
       get api_quotes_path, as: :json
