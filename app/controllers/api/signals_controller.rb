@@ -3,8 +3,7 @@
 module Api
   class SignalsController < BaseController
     def index
-      quotes = ExporterService.latest_quotes
-      rows = quotes.map { |q| ExporterService.format_row(q) }
+      rows = ExporterService.latest_rows
       stocks = rows.select { |r| %w[stock us_stock].include?(r[:tipo]) }
 
       render_json({

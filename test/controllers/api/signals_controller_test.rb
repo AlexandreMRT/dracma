@@ -14,11 +14,11 @@ module Api
       assert_response :success
       body = JSON.parse(response.body)
 
-      assert body.key?("bullish")
-      assert body.key?("bearish")
-      assert body.key?("rsi_oversold")
-      assert body.key?("rsi_overbought")
-      assert body.key?("volume_spike")
+      assert_equal [ "AAPL" ], body["bullish"]
+      assert_empty body["bearish"]
+      assert_empty body["rsi_oversold"]
+      assert_empty body["rsi_overbought"]
+      assert_empty body["volume_spike"]
     end
 
     test "requires authentication" do
