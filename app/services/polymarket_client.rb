@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# typed: true
 
 require "net/http"
 require "json"
@@ -7,8 +6,6 @@ require "json"
 # Polymarket Gamma API client for prediction market sentiment.
 # Ported from Python polymarket.py.
 class PolymarketClient
-  extend T::Sig
-
   GAMMA_API = "https://gamma-api.polymarket.com"
 
   MARKET_KEYWORDS = {
@@ -27,7 +24,6 @@ class PolymarketClient
   RELEVANT_CATEGORIES = %w[economics crypto business politics].freeze
 
   # Fetch markets from the Gamma API.
-  sig { params(limit: Integer, active: T::Boolean, closed: T::Boolean, category: T.nilable(String)).returns(T::Array[T.untyped]) }
   def self.fetch_markets(limit: 100, active: true, closed: false, category: nil)
     params = { limit: limit, active: active.to_s, closed: closed.to_s, order: "volume24hr", ascending: "false" }
     params[:category] = category if category
@@ -38,21 +34,19 @@ class PolymarketClient
     response = Net::HTTP.get_response(uri)
     return [] unless response.is_a?(Net::HTTPSuccess)
 
-    JSON.parse(T.must(response.body))
+    JSON.parse(response.body)
   rescue StandardError => e
     Rails.logger.warn("Polymarket fetch error: #{e.message}")
     []
   end
 
   # Match a market question to tracked asset keys.
-  sig { params(question: String, description: String).returns(T::Array[String]) }
   def self.match(question, description = "")
     text = "#{question} #{description}".downcase
     MARKET_KEYWORDS.select { |_, keywords| keywords.any? { |kw| text.include?(kw) } }.keys
   end
 
   # Calculate sentiment from a single market.
-  sig { params(market: T::Hash[String, T.untyped]).returns(T::Hash[Symbol, T.untyped]) }
   def self.sentiment_from_market(market)
     outcomes = JSON.parse(market["outcomes"] || "[]") rescue []
     prices = JSON.parse(market["outcomePrices"] || "[]") rescue []
@@ -80,7 +74,6 @@ class PolymarketClient
   end
 
   # Fetch all relevant markets and match them to assets.
-  sig { params(max_markets: Integer).returns(T::Hash[String, T::Array[T::Hash[Symbol, T.untyped]]]) }
   def self.fetch_sentiment(max_markets: 200)
     all_markets = []
 
@@ -112,7 +105,6 @@ class PolymarketClient
   end
 
   # Aggregate sentiment from multiple markets (volume-weighted).
-  sig { params(markets: T::Array[T::Hash[Symbol, T.untyped]]).returns(T::Hash[Symbol, T.untyped]) }
   def self.aggregate(markets)
     return { score: nil, label: nil, confidence: nil, market_count: 0, total_volume: 0 } if markets.empty?
 

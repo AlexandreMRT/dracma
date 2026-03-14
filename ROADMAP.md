@@ -36,7 +36,6 @@
 - [x] Scheduled jobs via Solid Queue (fetch quotes 3x/day weekdays, generate reports at 18:30)
 - [x] Docker support with multi-stage build (Dockerfile + docker-compose.yml)
 - [x] Production deployment via Kamal
-- [x] **Sorbet type checking** — all 10 services annotated with `# typed: true` and `extend T::Sig`
 - [x] **RuboCop** — Rails Omakase + rubocop-minitest
 - [x] **Brakeman** — static security analysis
 - [x] **Test suite** — Minitest + WebMock + fixtures, parallel execution
@@ -49,7 +48,7 @@
 - PostgreSQL 16 (+ Solid Cache, Solid Queue, Solid Cable)
 - Hotwire (Turbo + Stimulus) + Tailwind CSS v4
 - Propshaft + Importmap (no webpack/esbuild)
-- Sorbet for type checking, RuboCop for linting, Brakeman for security
+- RuboCop for linting and Brakeman for security
 - Minitest + WebMock + Capybara for testing
 - Kamal + Docker for deployment
 
@@ -160,7 +159,6 @@ jobs:
     - bin/rails test
     - bundle exec rubocop
     - bin/brakeman --no-pager
-    - bundle exec srb tc
 ```
 
 **Files to create:**
@@ -424,7 +422,6 @@ Current state (v1.0 — 2026-02-20):
 - Multi-user Google OAuth, PostgreSQL, Solid Queue
 - Portfolio tracking with P&L, dividends, positions
 - Exports: CSV, JSON, Markdown, AI JSON
-- Sorbet type checking on all services (# typed: true)
 - RuboCop (Rails Omakase) + Brakeman + Minitest
 
 Check ROADMAP.md for detailed feature plans.
@@ -459,14 +456,6 @@ bundle exec rubocop -A  # auto-fix
 
 # Security scan
 bin/brakeman
-
-# Type checking
-bundle exec srb tc
-
-# Generate Sorbet RBIs
-bin/tapioca gems
-bin/tapioca dsl
-bin/tapioca annotations
 
 # Docker development
 docker compose up

@@ -13,7 +13,6 @@ Migrated from a Python/FastAPI application ([b3_tracker](../b3_tracker)).
 - **Polymarket integration** — prediction market sentiment for crypto, macro, and geopolitics
 - **Algorithmic watchlist** — composite scoring from RSI, trend, news, 52W proximity, and more
 - **Multi-user** — Google OAuth 2.0 with session-based auth
-- **Sorbet typed** — all 10 services annotated with `# typed: true`
 - **Scheduled** — quotes fetched 3x/day on weekdays, reports generated daily at 18:30
 
 ## Features
@@ -90,7 +89,6 @@ Migrated from a Python/FastAPI application ([b3_tracker](../b3_tracker)).
 | Asset Pipeline | Propshaft + Importmap |
 | Background Jobs | Solid Queue (+ Solid Cache, Solid Cable) |
 | Auth | OmniAuth (Google OAuth2) |
-| Type Checking | Sorbet (`# typed: true` on all services) |
 | Linting | RuboCop (Rails Omakase + rubocop-minitest) |
 | Security | Brakeman |
 | Testing | Minitest + WebMock + Capybara + Selenium |
@@ -275,9 +273,6 @@ bundle exec rubocop -A
 
 # Brakeman — security scan
 bin/brakeman
-
-# Sorbet — type checking
-bundle exec srb tc
 ```
 
 ## Architecture
@@ -311,7 +306,7 @@ app/
 │   ├── position.rb
 │   ├── transaction.rb
 │   └── watchlist.rb
-├── services/              # Business logic (all Sorbet-typed)
+├── services/              # Business logic
 │   ├── asset_catalog.rb          # 128 tracked assets (frozen hash catalog)
 │   ├── exporter_service.rb       # CSV/JSON/MD/AI report generation
 │   ├── news_fetcher.rb           # Google News RSS (PT + EN)
@@ -366,7 +361,7 @@ See [ROADMAP.md](ROADMAP.md) for detailed plans including:
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for coding conventions, testing guidelines, Sorbet/RuboCop rules, and the complete AI agent development guide.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for coding conventions, testing guidelines, and the complete AI agent development guide.
 
 ## License
 

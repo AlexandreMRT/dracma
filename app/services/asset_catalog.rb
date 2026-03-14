@@ -1,10 +1,7 @@
 # frozen_string_literal: true
-# typed: true
 
 # Static catalog of tracked assets, ported from Python assets.py
 module AssetCatalog
-  extend T::Sig
-
   IBOVESPA_STOCKS = {
     # Bancos e Financeiro
     "BBAS3.SA" => { name: "Banco do Brasil", sector: "Bancário" },
@@ -177,12 +174,10 @@ module AssetCatalog
     "CVX" => { name: "Chevron", sector: "Petróleo e Gás" }
   }.freeze
 
-  sig { returns(T::Hash[String, T::Hash[Symbol, String]]) }
   def self.all
     {}.merge(IBOVESPA_STOCKS).merge(US_STOCKS).merge(COMMODITIES).merge(CRYPTO).merge(CURRENCY)
   end
 
-  sig { params(ticker: String).returns(String) }
   def self.asset_type_for(ticker)
     return "stock" if IBOVESPA_STOCKS.key?(ticker)
     return "us_stock" if US_STOCKS.key?(ticker)
@@ -193,12 +188,10 @@ module AssetCatalog
     "stock"
   end
 
-  sig { params(ticker: String).returns(T::Boolean) }
   def self.brazilian?(ticker)
     IBOVESPA_STOCKS.key?(ticker)
   end
 
-  sig { params(ticker: String).returns(T::Hash[Symbol, String]) }
   def self.info(ticker)
     all[ticker] || { name: "Desconhecido", sector: "Outro" }
   end

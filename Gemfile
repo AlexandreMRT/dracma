@@ -62,10 +62,5 @@ group :test do
 end
 
 # B3 Tracker / Dracma dependencies
-gem "sorbet"
-gem "sorbet-runtime"
-gem "tapioca", "~> 0.17.10", require: false
-gem "jwt"
-gem "omniauth-google-oauth2"
 gem "csv"
-gem "minitest", "~> 6.0"
+gem "omniauth-google-oauth2"

@@ -11,7 +11,7 @@
 1. [Project Overview](#project-overview)
 2. [File Structure & Naming](#file-structure--naming)
 3. [Ruby & Rails Conventions](#ruby--rails-conventions)
-4. [Sorbet Type Checking](#sorbet-type-checking)
+4. [Service Layer Guidelines](#service-layer-guidelines)
 5. [RuboCop Linting](#rubocop-linting)
 6. [Brakeman Security](#brakeman-security)
 7. [Testing with Minitest](#testing-with-minitest)
@@ -45,8 +45,7 @@ Dracma is a Brazilian stock market (B3) tracker and portfolio manager built with
 
 **Key architectural decisions:**
 - **Service-object pattern** — all business logic lives in `app/services/`, controllers are thin
-- **Sorbet typing** — all services use `# typed: true` with full method signatures
-- **Hash-based data flow** — quote data flows as `Hash[Symbol, T.untyped]` through the pipeline
+- **Hash-based data flow** — quote data flows as symbol-keyed hashes through the pipeline
 - **Static asset catalog** — assets defined as frozen hashes in `AssetCatalog`, not hardcoded in DB
 - **Portuguese export labels** — exported field names use Portuguese (`preco_brl`, `setor`, `var_1d`)
 - **English code** — all code, comments, and variable names are in English
@@ -74,7 +73,7 @@ app/
 ├── javascript/controllers/   # Stimulus JS controllers
 ├── jobs/                     # Solid Queue background jobs
 ├── models/                   # ActiveRecord models
-├── services/                 # Business logic (Sorbet-typed)
+├── services/                 # Business logic
 └── views/                    # ERB templates + Tailwind CSS v4
 
 config/
@@ -116,7 +115,6 @@ Every Ruby file in `app/services/` MUST start with:
 
 ```ruby
 # frozen_string_literal: true
-# typed: true
 ```
 
 Every other Ruby file (controllers, models, jobs) MUST start with:
@@ -125,7 +123,7 @@ Every other Ruby file (controllers, models, jobs) MUST start with:
 # frozen_string_literal: true is NOT required (Rails convention — omitted in generated files)
 ```
 
-> **Note:** Rails-generated files (controllers, models) do not use `frozen_string_literal`. Services do because they were ported from a Python codebase with stricter conventions. Follow the existing pattern: if the file is in `app/services/`, add both pragmas. Otherwise, follow Rails defaults.
+> **Note:** Rails-generated files (controllers, models) do not use `frozen_string_literal`. Services do because they were ported from a Python codebase with stricter conventions. Follow the existing pattern: if the file is in `app/services/`, add the frozen string literal pragma. Otherwise, follow Rails defaults.
 
 ### String Style
 
@@ -151,117 +149,36 @@ Every other Ruby file (controllers, models, jobs) MUST start with:
 
 ---
 
-## Sorbet Type Checking
+## Service Layer Guidelines
 
-### When to Use Sorbet
+Use `app/services/` for business logic, orchestration, integrations, and report generation. Controllers should remain thin, models should stay focused on persistence concerns, and services should expose clear entry points with descriptive method names.
 
-| File Type | Sorbet Required? | Typing Level |
-|-----------|-----------------|--------------|
-| Services (`app/services/`) | **Yes** | `# typed: true` |
-| Controllers | No | N/A |
-| Models | No | N/A |
-| Jobs | No | N/A |
-| Tests | No (ignored in sorbet/config) | N/A |
-
-### Service Typing Pattern
-
-Every service MUST follow this pattern:
+### Service File Pattern
 
 ```ruby
 # frozen_string_literal: true
-# typed: true
 
 # Brief description of the service.
 # Ported from Python <original_filename>.py (if applicable).
 module MyService
-  extend T::Sig
-
-  # Constants go here
   SOME_THRESHOLD = 0.5
 
-  # Every public method needs a signature
-  sig { params(data: T::Hash[Symbol, T.untyped]).returns(T::Hash[Symbol, T.untyped]) }
   def self.process(data)
     # implementation
   end
 
-  # Private methods also need signatures
-  sig { params(value: T.nilable(Float)).returns(Float) }
-  private_class_method def self.safe_float(value)
+  def self.safe_float(value)
     value || 0.0
   end
+  private_class_method :safe_float
 end
 ```
 
-### Sorbet Patterns Used in This Codebase
+### Data Handling Patterns
 
-**Module with class methods** (stateless services):
-```ruby
-module SignalDetector
-  extend T::Sig
-
-  sig { params(data: T::Hash[Symbol, T.untyped]).returns(SignalDetector::Result) }
-  def self.detect(data)
-    # ...
-  end
-end
-```
-
-**Class with instance methods** (stateful services):
-```ruby
-class QuoteFetcher
-  extend T::Sig
-
-  sig { void }
-  def initialize
-    @logger = Rails.logger
-  end
-
-  sig { returns([Integer, Integer]) }
-  def fetch_all
-    # ...
-  end
-end
-```
-
-### Common Sorbet Types
-
-| Ruby Type | Sorbet Annotation |
-|-----------|------------------|
-| Hash with symbol keys | `T::Hash[Symbol, T.untyped]` |
-| Array of hashes | `T::Array[T::Hash[Symbol, T.untyped]]` |
-| Nullable float | `T.nilable(Float)` |
-| String or nil | `T.nilable(String)` |
-| Integer | `Integer` |
-| Boolean | `T::Boolean` |
-| No return value | `void` |
-| Tuple return | `[Integer, Integer]` |
-| Any type | `T.untyped` |
-
-### Sorbet Commands
-
-```bash
-# Type check the entire project
-bundle exec srb tc
-
-# Generate RBIs for gems
-bin/tapioca gems
-
-# Generate RBIs for DSLs (ActiveRecord, etc.)
-bin/tapioca dsl
-
-# Generate RBIs for annotations
-bin/tapioca annotations
-```
-
-### Sorbet Config (`sorbet/config`)
-
-The following paths are **ignored** by Sorbet:
-- `tmp/`, `vendor/bundle`, `db/migrate/`, `test/`
-- `sorbet/rbi/sorbet-typed`
-- Several specific gem RBIs that cause issues (json, bigdecimal, msgpack, irb, net-http, logger, csv, matrix, net-protocol, rubyzip, pp)
-
-**When adding new gem dependencies:** If Sorbet fails on a generated RBI file, add `--ignore=sorbet/rbi/gems/<gem_file>.rbi` to `sorbet/config`.
+- Prefer symbol-keyed hashes for internal data structures.
+- Keep external API parsing isolated to the service that owns the integration.
+- When a service accepts either a Hash or an ActiveRecord object, use a small accessor helper instead of branching throughout the method.
 
 ---
 
@@ -578,7 +495,7 @@ bin/rails test test/models/user_test.rb:10
 ### Design Principles
 
 1. **All business logic goes in `app/services/`** — controllers MUST NOT contain business logic
-2. **Services are Sorbet-typed** — `# typed: true` with `extend T::Sig`
+2. **Services own the business logic** — keep interfaces small and descriptive
 3. **Two patterns used:**
    - **Module** for stateless services (only class methods): `SignalDetector`, `WatchlistScorer`, `SentimentAnalyzer`, `AssetCatalog`
    - **Class** for stateful services (hold instance state): `QuoteFetcher`, `PortfolioService`, `YahooFinanceClient`, `NewsFetcher`, `PolymarketClient`, `ExporterService`
@@ -587,28 +504,23 @@ bin/rails test test/models/user_test.rb:10
 
 ```ruby
 # frozen_string_literal: true
-# typed: true
 
 # Brief description of what this service does.
 # Ported from Python <filename>.py (if applicable).
 module MyService
-  extend T::Sig
-
   # Constants
   THRESHOLD = 0.5
 
-  # Public class method with Sorbet signature
-  sig { params(data: T::Hash[Symbol, T.untyped]).returns(T::Hash[Symbol, T.untyped]) }
   def self.process(data)
     value = extract_value(data)
     { result: value }
   end
 
   # Private helper
-  sig { params(data: T::Hash[Symbol, T.untyped]).returns(Float) }
-  private_class_method def self.extract_value(data)
+  def self.extract_value(data)
     data[:value]&.to_f || 0.0
   end
+  private_class_method :extract_value
 end
 ```
 
@@ -616,18 +528,13 @@ end
 
 ```ruby
 # frozen_string_literal: true
-# typed: true
 
 # Brief description of what this service does.
 class MyService
-  extend T::Sig
-
-  sig { void }
   def initialize
     @logger = Rails.logger
   end
 
-  sig { params(input: String).returns(T::Hash[Symbol, T.untyped]) }
   def perform(input)
     @logger.info("Processing: #{input}")
     # implementation
@@ -635,7 +542,6 @@ class MyService
 
   private
 
-  sig { params(raw: String).returns(String) }
   def sanitize(raw)
     raw.strip.downcase
   end
@@ -659,7 +565,7 @@ end
 
 ### Data Flow Convention
 
-Quote data flows as `Hash[Symbol, T.untyped]` through the pipeline:
+Quote data flows as symbol-keyed hashes through the pipeline:
 
 ```
 AssetCatalog (static list)
@@ -889,7 +795,7 @@ When creating a new model:
 2. Add model file in `app/models/`
 3. Add fixtures in `test/fixtures/model_names.yml`
 4. Add model test in `test/models/model_name_test.rb`
-5. Run `bin/tapioca dsl` to regenerate Sorbet RBIs
+5. Keep any service and documentation references aligned with the new model
 
 ---
 
@@ -1281,27 +1187,22 @@ bundle exec rubocop
 
 # 3. Security (must have 0 warnings)
 bin/brakeman --no-pager
-
-# 4. Type checking (must have 0 errors)
-bundle exec srb tc
 ```
 
 **When adding new features:**
 
-- [ ] Service has `# frozen_string_literal: true` and `# typed: true`
-- [ ] Service uses `extend T::Sig` with method signatures
+- [ ] Service has `# frozen_string_literal: true`
+- [ ] Service keeps business logic out of controllers and models
 - [ ] Controller is thin — logic delegated to service
 - [ ] Test file created with meaningful test cases
 - [ ] Fixtures updated if new models added
 - [ ] Migration created if schema changes needed
 - [ ] Route added in `config/routes.rb`
-- [ ] `bin/tapioca dsl` run if new ActiveRecord models added
-- [ ] All 4 validation commands pass
+- [ ] All validation commands pass
 
 **When modifying existing code:**
 
 - [ ] Existing tests still pass
-- [ ] Sorbet signatures updated if method signatures changed
 - [ ] No new RuboCop offenses introduced
 - [ ] No new Brakeman warnings
 

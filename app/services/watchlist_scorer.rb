@@ -1,12 +1,8 @@
 # frozen_string_literal: true
-# typed: true
 
 # Algorithmic watchlist scoring service.
 # Ported from Python scoring.py.
 module WatchlistScorer
-  extend T::Sig
-
-  sig { params(items: T::Array[T::Hash[T.any(Symbol, String), T.untyped]], min_score: Float, max_items: Integer).returns(T::Hash[Symbol, T::Array[T::Hash[Symbol, T.untyped]]]) }
   def self.build(items, min_score: 3.0, max_items: 12)
     candidates = []
     avoid_list = []
@@ -128,7 +124,6 @@ module WatchlistScorer
     { watchlist: candidates.first(max_items), avoid_list: avoid_list.first(max_items) }
   end
 
-  sig { params(row: T::Hash[T.any(Symbol, String), T.untyped], key: Symbol).returns(T.untyped) }
   def self.value_for(row, key)
     row[key] || row[key.to_s]
   end
