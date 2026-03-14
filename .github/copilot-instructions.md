@@ -10,7 +10,7 @@
 
 Dracma is a Brazilian stock market (B3) tracker and portfolio manager built with **Rails 8.1.2** (Ruby 3.3+, PostgreSQL 16). Migrated from a Python/FastAPI application (`b3_tracker`).
 
-**Stack:** Hotwire (Turbo + Stimulus), Tailwind CSS v4, Propshaft, Importmap (no webpack/esbuild), Solid Queue/Cache/Cable, RuboCop (Rails Omakase), Brakeman, Minitest.
+**Stack:** Hotwire (Turbo + Stimulus), Tailwind CSS v4, Propshaft, Importmap (no webpack/esbuild), Solid Queue/Cache/Cable, RuboCop (Rails Omakase), Brakeman, Minitest, Lefthook, Rack::Attack, SimpleCov.
 
 **Key architectural decisions:**
 - **Service-object pattern** — all business logic lives in `app/services/`, controllers are thin
@@ -129,11 +129,23 @@ end
 
 ### 5. Validation Checklist — Run Before Every Commit
 
+Run all checks with a single command:
+```bash
+bin/check            # Runs all 4 checks (test + rubocop + brakeman + sorbet)
+bin/check --quick    # Skip tests (rubocop + brakeman + sorbet only)
+```
+
+Or individually:
 ```bash
 bin/rails test                # Tests (must pass 100%)
 bundle exec rubocop           # Linting (0 offenses)
 bin/brakeman --no-pager       # Security (0 warnings)
 ```
+
+**Automated enforcement:**
+- **Lefthook pre-commit hook** — runs RuboCop on staged files automatically
+- **CI pipeline** — 5 jobs: `scan_ruby` (Brakeman), `scan_js` (importmap audit), `lint` (RuboCop), `typecheck` (Sorbet), `test` (Minitest + system tests). This is the real gate — PRs cannot merge unless CI is green.
+- Install hooks after fresh clone: `bundle exec lefthook install` (also runs via `bin/setup`)
 
 ---
 
@@ -286,6 +298,7 @@ end
 |-----|----------|--------|
 | `FetchQuotesJob` | Weekdays 10:00, 14:00, 18:00 BRT | `QuoteFetcher.new.fetch_all` |
 | `GenerateReportsJob` | Weekdays 18:30 BRT | Export CSV, JSON, MD, AI reports |
+| `CleanExportsJob` | Sundays 3:00 AM | Delete export files older than 30 days |
 
 ---
 
@@ -297,6 +310,19 @@ end
 - `helper_method :current_user, :logged_in?` — available in views
 - Skip auth: `skip_before_action :require_login, only: [...]`
 - Only `/login` and `/auth/*` routes skip auth
+- Logout uses `reset_session` (invalidates entire session, not just user_id)
+
+---
+
+## Security
+
+- **CSP** — Content Security Policy enabled via `config/initializers/content_security_policy.rb` (report-only mode initially)
+- **Permissions Policy** — restrictive policy denying camera, microphone, geolocation, etc.
+- **Rate limiting** — `Rack::Attack` throttles login (5/min per IP), API (60/min per user), general (300/5min per IP)
+- **Host authorization** — `config.hosts` enforced in production via `APP_HOST` env var
+- **CSRF protection** — enabled globally; API namespace skips CSRF but requires session auth
+- **SSL** — `force_ssl` and `assume_ssl` in production
+- **Parameter filtering** — passwords, emails, secrets, tokens, keys filtered from logs
 
 ---
 
@@ -321,7 +347,9 @@ end
 - [ ] Migration created if schema changes needed
 - [ ] Route added in `config/routes.rb`
 - [ ] Stimulus controller follows `*_controller.js` naming with `static values`/`targets`
-- [ ] All validation commands pass
+- [ ] All 4 validation commands pass (`bin/check`)
+- [ ] Security: new endpoints have appropriate rate limiting and auth
+- [ ] Copilot instructions updated if new patterns or conventions introduced
 
 ---
 
@@ -334,5 +362,10 @@ end
 | `.rubocop.yml` | Linting configuration |
 | `config/routes.rb` | All routes |
 | `config/recurring.yml` | Job schedule |
-| `test/test_helper.rb` | Test setup, `login_as`, WebMock, parallel config |
+| `test/test_helper.rb` | Test setup, `login_as`, WebMock, SimpleCov, parallel config |
 | `db/schema.rb` | Full database schema (80+ Quote columns) |
+| `lefthook.yml` | Git hook configuration (pre-commit, pre-push) |
+| `bin/check` | Run all 4 validation checks in one command |
+| `exports/` | Generated reports (CSV, JSON, MD, AI JSON) |
+| `.github/workflows/ci.yml` | CI pipeline (5 jobs: scan, lint, typecheck, test) |
+| `config/initializers/rack_attack.rb` | Rate limiting rules |

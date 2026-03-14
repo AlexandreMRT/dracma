@@ -47,6 +47,9 @@ group :development, :test do
   # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
   gem "rubocop-rails-omakase", require: false
   gem "rubocop-minitest", require: false
+
+  # Git hooks
+  gem "lefthook", require: false
 end
 
 group :development do
@@ -59,8 +62,12 @@ group :test do
   gem "capybara"
   gem "selenium-webdriver"
   gem "webmock"
+
+  # Code coverage
+  gem "simplecov", require: false
 end
 
 # B3 Tracker / Dracma dependencies
 gem "csv"
 gem "omniauth-google-oauth2"
+gem "rack-attack"

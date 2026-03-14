@@ -1,0 +1,11 @@
+# Lefthook — Git hook manager
+# Lint staged files on commit. Full validation runs in CI.
+# Install hooks: bundle exec lefthook install
+
+pre-commit:
+  parallel: true
+  commands:
+    rubocop:
+      glob: "**/*.rb"
+      run: bundle exec rubocop --force-exclusion {staged_files}
+      stage_fixed: true

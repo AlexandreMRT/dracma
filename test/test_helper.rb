@@ -1,4 +1,21 @@
 ENV["RAILS_ENV"] ||= "test"
+
+require "simplecov"
+SimpleCov.start "rails" do
+  enable_coverage :branch
+  minimum_coverage line: 0, branch: 0
+  add_filter "/sorbet/"
+  add_filter "/vendor/"
+  add_group "Services", "app/services"
+  add_group "Controllers", "app/controllers"
+  add_group "Models", "app/models"
+  add_group "Jobs", "app/jobs"
+  add_group "Helpers", "app/helpers"
+
+  # Support parallel test processes — each worker writes a unique result file
+  command_name "minitest-#{ENV.fetch("TEST_ENV_NUMBER", "")}"
+end
+
 require_relative "../config/environment"
 require "rails/test_help"
 require "webmock/minitest"
