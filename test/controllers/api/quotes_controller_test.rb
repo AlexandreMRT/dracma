@@ -14,14 +14,17 @@ module Api
       assert_response :success
       body = JSON.parse(response.body)
 
-      assert body.key?("total")
-      assert body.key?("quotes")
+      assert_equal 2, body["total"]
+      assert_equal [ "PETR4", "AAPL" ], body["quotes"].map { |quote| quote["ticker"] }
     end
 
     test "index filters by date" do
       get api_quotes_path(date: "2026-02-10"), as: :json
 
       assert_response :success
+      body = JSON.parse(response.body)
+
+      assert_equal [ "2026-02-10" ], body["quotes"].map { |quote| quote["data_cotacao"] }.uniq
     end
 
     test "index rejects invalid date" do

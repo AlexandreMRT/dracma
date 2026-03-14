@@ -1,5 +1,4 @@
 # frozen_string_literal: true
-# typed: true
 
 require "net/http"
 require "json"
@@ -8,8 +7,6 @@ require "uri"
 # Yahoo Finance client using public chart API (no gem dependency).
 # Replaces Python's yfinance library with pure Net::HTTP calls.
 class YahooFinanceClient
-  extend T::Sig
-
   BASE = "https://query1.finance.yahoo.com"
   MAX_RETRIES = 5
   BASE_BACKOFF_SECONDS = 1.0
@@ -23,7 +20,6 @@ class YahooFinanceClient
   # @param range [String] "1d","5d","1mo","3mo","6mo","1y","5y","max"
   # @param interval [String] "1d","1wk","1mo"
   # @return [Hash] with :meta and :quotes keys
-  sig { params(ticker: String, range: String, interval: String).returns(T::Hash[Symbol, T.untyped]) }
   def self.history(ticker, range: "max", interval: "1d")
     uri = URI("#{BASE}/v8/finance/chart/#{ERB::Util.url_encode(ticker)}")
     uri.query = URI.encode_www_form(range: range, interval: interval, events: "history")
@@ -31,7 +27,7 @@ class YahooFinanceClient
     response = perform_request(uri)
     raise Error, "Yahoo Finance HTTP #{response.code}" unless response.is_a?(Net::HTTPSuccess)
 
-    data = JSON.parse(T.must(response.body))
+    data = JSON.parse(response.body)
     result = data.dig("chart", "result", 0)
     raise Error, "No data for #{ticker}" unless result
 
@@ -57,7 +53,6 @@ class YahooFinanceClient
   #
   # @param ticker [String]
   # @return [Hash] key fundamental fields
-  sig { params(ticker: String).returns(T::Hash[Symbol, T.untyped]) }
   def self.info(ticker)
     modules = "summaryDetail,defaultKeyStatistics,financialData,recommendationTrend"
     uri = URI("#{BASE}/v10/finance/quoteSummary/#{ERB::Util.url_encode(ticker)}")
@@ -66,7 +61,7 @@ class YahooFinanceClient
     response = perform_request(uri)
     return {} unless response.is_a?(Net::HTTPSuccess)
 
-    data = JSON.parse(T.must(response.body))
+    data = JSON.parse(response.body)
     result = data.dig("quoteSummary", "result", 0) || {}
     summary = result["summaryDetail"] || {}
     stats = result["defaultKeyStatistics"] || {}
@@ -103,7 +98,6 @@ class YahooFinanceClient
     val < 1 ? val * 100 : val
   end
 
-  sig { params(uri: URI::Generic).returns(Net::HTTPResponse) }
   def self.perform_request(uri)
     retries = 0
 
@@ -139,12 +133,10 @@ class YahooFinanceClient
     end
   end
 
-  sig { params(response: Net::HTTPResponse).returns(T::Boolean) }
   def self.should_retry?(response)
     response.code == "429" || (response.code.to_i >= 500)
   end
 
-  sig { params(attempt: Integer, response: T.nilable(Net::HTTPResponse)).returns(Float) }
   def self.backoff_for(attempt, response)
     retry_after = response&.[]("Retry-After")
     return retry_after.to_f if retry_after && retry_after.to_f.positive?

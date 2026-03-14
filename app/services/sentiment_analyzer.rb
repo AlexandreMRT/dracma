@@ -1,11 +1,8 @@
 # frozen_string_literal: true
-# typed: true
 
 # Pure-Ruby VADER-inspired news sentiment analyzer.
 # Replaces Python's nltk.sentiment.vader with a minimal keyword-based approach.
 module SentimentAnalyzer
-  extend T::Sig
-
   # Portuguese financial keywords with sentiment weights
   PT_POSITIVE = {
     "alta" => 2.0, "subiu" => 2.0, "sobe" => 1.5, "valoriza" => 2.0, "valorização" => 2.0,
@@ -45,7 +42,6 @@ module SentimentAnalyzer
   ALL_KEYWORDS = {}.merge(PT_POSITIVE).merge(PT_NEGATIVE).merge(EN_POSITIVE).merge(EN_NEGATIVE).freeze
 
   # Analyze a single text and return a compound score (-1.0 to +1.0).
-  sig { params(text: T.nilable(String)).returns(Float) }
   def self.score(text)
     return 0.0 if text.nil? || text.empty?
 
@@ -68,7 +64,6 @@ module SentimentAnalyzer
   end
 
   # Analyze multiple texts and return average score + best headline.
-  sig { params(texts: T.nilable(T::Array[T.untyped]), lang: Symbol).returns([ T.nilable(Float), T.nilable(String) ]) }
   def self.analyze(texts, lang: :en)
     return [ nil, nil ] if texts.nil? || texts.empty?
 
@@ -81,9 +76,9 @@ module SentimentAnalyzer
 
     return [ nil, nil ] if scores.empty?
 
-    avg = T.cast(scores.sum / scores.size.to_f, Float)
+    avg = scores.sum / scores.size.to_f
 
-    first_item = T.must(texts.first)
+    first_item = texts.first
     headline =
       if first_item.is_a?(Hash)
         raw_headline = first_item[:title] || first_item["title"]
@@ -96,7 +91,6 @@ module SentimentAnalyzer
   end
 
   # Determine sentiment label from combined score.
-  sig { params(combined_score: T.nilable(Float)).returns(T.nilable(String)) }
   def self.label(combined_score)
     return nil if combined_score.nil?
 

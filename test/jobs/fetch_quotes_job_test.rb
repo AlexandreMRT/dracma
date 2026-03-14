@@ -9,11 +9,15 @@ class FetchQuotesJobTest < ActiveJob::TestCase
 
   test "calls QuoteFetcher#fetch_all" do
     called = false
-    QuoteFetcher.define_method(:fetch_all) { called = true }
+    fetcher = Object.new
+    fetcher.define_singleton_method(:fetch_all) { called = true }
+    original_new = QuoteFetcher.method(:new)
+
+    QuoteFetcher.define_singleton_method(:new) { fetcher }
     FetchQuotesJob.perform_now
 
     assert called
   ensure
-    QuoteFetcher.define_method(:fetch_all) { raise "not stubbed" }
+    QuoteFetcher.define_singleton_method(:new, original_new)
   end
 end

@@ -1,13 +1,9 @@
 # frozen_string_literal: true
-# typed: true
 
 # Main quote fetching service. Orchestrates Yahoo Finance, news, benchmarks,
 # signals, and persists results to the database.
 # Ported from Python fetcher.py.
 class QuoteFetcher
-  extend T::Sig
-
-  sig { void }
   def initialize
     @logger = Rails.logger
     @usd_brl = nil
@@ -15,7 +11,6 @@ class QuoteFetcher
   end
 
   # Fetch and save quotes for all tracked assets.
-  sig { returns([ Integer, Integer ]) }
   def fetch_all
     @logger.info("=== QuoteFetcher: starting full fetch ===")
     start = Time.current
@@ -27,22 +22,10 @@ class QuoteFetcher
     catalog = build_asset_list
     @logger.info("Assets to fetch: #{catalog.size}")
 
-    results = []
-    errors = 0
-
-    catalog.each do |entry|
-      result = fetch_single(entry)
-      if result
-        results << result
-      else
-        errors += 1
-      end
-    end
+    results, errors = fetch_catalog(catalog)
 
     # Fetch news for stocks only
-    results.select { |r| %w[stock us_stock].include?(r[:asset_type]) }.each do |r|
-      fetch_news_for(r)
-    end
+    fetch_news(results.select { |result| %w[stock us_stock].include?(result[:asset_type]) })
 
     # Save to database
     saved = save_all(results)
@@ -54,7 +37,55 @@ class QuoteFetcher
 
   private
 
-  sig { returns(Float) }
+  def fetch_catalog(catalog)
+    results = []
+    errors = 0
+    mutex = Mutex.new
+
+    parallel_each(catalog) do |entry|
+      result = fetch_single(entry)
+
+      mutex.synchronize do
+        if result
+          results << result
+        else
+          errors += 1
+        end
+      end
+    end
+
+    [ results, errors ]
+  end
+
+  def fetch_news(results)
+    parallel_each(results) { |result| fetch_news_for(result) }
+  end
+
+  def parallel_each(items)
+    return items.each { |item| yield item } if items.size <= 1 || worker_count == 1
+
+    queue = Queue.new
+    items.each { |item| queue << item }
+
+    workers = Array.new([ worker_count, items.size ].min) do
+      Thread.new do
+        loop do
+          item = queue.pop(true)
+          yield item
+        end
+      rescue ThreadError
+        nil
+      end
+    end
+
+    workers.each(&:join)
+  end
+
+  def worker_count
+    configured = ENV.fetch("QUOTE_FETCHER_CONCURRENCY", "8").to_i
+    configured.clamp(1, 16)
+  end
+
   def fetch_usd_brl
     data = YahooFinanceClient.history("USDBRL=X", range: "5d")
     data[:quotes].last&.dig(:close) || 6.20
@@ -62,7 +93,6 @@ class QuoteFetcher
     6.20
   end
 
-  sig { returns(T::Hash[String, T.untyped]) }
   def fetch_benchmarks
     result = {}
     { "^BVSP" => "ibov", "^GSPC" => "sp500" }.each do |ticker, prefix|
@@ -83,7 +113,6 @@ class QuoteFetcher
     result
   end
 
-  sig { returns(T::Array[T::Hash[Symbol, T.untyped]]) }
   def build_asset_list
     list = []
     AssetCatalog::IBOVESPA_STOCKS.each { |t, i| list << { ticker: t, info: i, type: "stock", brazilian: true } }
@@ -94,7 +123,6 @@ class QuoteFetcher
     list
   end
 
-  sig { params(entry: T::Hash[Symbol, T.untyped]).returns(T.nilable(T::Hash[Symbol, T.untyped])) }
   def fetch_single(entry)
     ticker = entry[:ticker]
     data = YahooFinanceClient.history(ticker)
@@ -171,7 +199,6 @@ class QuoteFetcher
     nil
   end
 
-  sig { params(result: T.nilable(T::Hash[Symbol, T.untyped])).void }
   def fetch_news_for(result)
     return unless result
 
@@ -182,13 +209,12 @@ class QuoteFetcher
       result.dig(:info, :name) || "",
       brazilian: result[:brazilian]
     )
-    quote_data = T.cast(result[:quote_data], T::Hash[Symbol, T.untyped])
+    quote_data = result[:quote_data]
     quote_data.merge!(news)
   rescue StandardError => e
     @logger.warn("News error for #{ticker || 'unknown'}: #{e.message}")
   end
 
-  sig { params(results: T::Array[T::Hash[Symbol, T.untyped]]).returns(Integer) }
   def save_all(results)
     saved = 0
     results.each do |r|
@@ -213,12 +239,10 @@ class QuoteFetcher
     saved
   end
 
-  sig { params(type: String).returns(String) }
   def normalize_type(type)
     type == "us_stock" ? "stock" : type
   end
 
-  sig { params(quote: T.untyped, qd: T::Hash[Symbol, T.untyped], price_brl: T.untyped, price_usd: T.untyped).void }
   def assign_quote_fields(quote, qd, price_brl, price_usd)
     g = ->(k) { qd[k] }
 
@@ -271,17 +295,13 @@ class QuoteFetcher
     end
   end
 
-  sig { params(quotes: T::Array[T::Hash[Symbol, T.untyped]], current: Float).returns(T::Hash[Symbol, T.untyped]) }
   def calculate_technicals(quotes, current)
-    closes = T.let(
-      quotes.filter_map do |q|
-        close = q[:close]
-        next if close.nil?
+    closes = quotes.filter_map do |q|
+      close = q[:close]
+      next if close.nil?
 
-        close.to_f
-      end,
-      T::Array[Float]
-    )
+      close.to_f
+    end
     result = {}
 
     if closes.size >= 50
@@ -304,17 +324,12 @@ class QuoteFetcher
 
     # Volatility
     if closes.size >= 30
-      recent_closes = T.let(closes.last(31), T::Array[Float])
-      returns = T.let(
-        recent_closes.each_cons(2).filter_map do |a, b|
-          prev_close = T.must(a)
-          curr_close = T.must(b)
-          next if prev_close.zero?
+      recent_closes = closes.last(31)
+      returns = recent_closes.each_cons(2).filter_map do |a, b|
+        next if a.zero?
 
-          ((curr_close - prev_close) / prev_close).to_f
-        end,
-        T::Array[Float]
-      )
+        ((b - a) / a).to_f
+      end
       return result if returns.empty?
 
       mean = returns.sum / returns.size
@@ -326,7 +341,7 @@ class QuoteFetcher
     volumes = quotes.map { |q| q[:volume] }.compact
     if volumes.size >= 20
       avg_vol = volumes.last(20).sum / 20.0
-      current_vol = T.must(volumes.last)
+      current_vol = volumes.last
       result[:avg_volume_20d] = avg_vol
       result[:volume_ratio] = avg_vol > 0 ? current_vol / avg_vol : nil
     end
@@ -334,11 +349,10 @@ class QuoteFetcher
     result
   end
 
-  sig { params(closes: T::Array[Float], period: Integer).returns(T.nilable(Float)) }
   def calculate_rsi(closes, period: 14)
     return nil if closes.size < period + 1
 
-    recent = T.let(closes.last(period + 1), T::Array[Float])
+    recent = closes.last(period + 1)
     deltas = recent.each_cons(2).map { |a, b| b.to_f - a.to_f }
     gains = deltas.select(&:positive?)
     losses = deltas.select(&:negative?).map(&:abs)
@@ -352,14 +366,12 @@ class QuoteFetcher
     100.0 - (100.0 / (1.0 + rs))
   end
 
-  sig { params(quotes: T::Array[T::Hash[Symbol, T.untyped]], target_date: T.untyped).returns(T.nilable(Float)) }
   def price_at(quotes, target_date)
     target_date = target_date.to_date if target_date.respond_to?(:to_date)
     price = quotes.select { |q| q[:date] <= target_date }.last&.dig(:close)
     price&.to_f
   end
 
-  sig { params(current: Float, previous: T.nilable(Float)).returns(T.nilable(Float)) }
   def change_pct(current, previous)
     return nil unless previous && previous > 0
 

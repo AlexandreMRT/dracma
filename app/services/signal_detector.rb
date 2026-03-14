@@ -1,11 +1,8 @@
 # frozen_string_literal: true
-# typed: true
 
 # Detects trading signals from quote data.
 # Ported from Python signals.py - single source of truth for signal detection.
 module SignalDetector
-  extend T::Sig
-
   RSI_OVERSOLD = 30
   RSI_OVERBOUGHT = 70
   VOLUME_SPIKE_RATIO = 2.0
@@ -55,7 +52,6 @@ module SignalDetector
   end
 
   # Detect signals from a Hash or ActiveRecord object.
-  sig { params(data: T.untyped).returns(Result) }
   def self.detect(data)
     g = ->(key) { data.is_a?(Hash) ? data[key] : data.try(key) }
 

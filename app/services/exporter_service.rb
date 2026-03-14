@@ -1,28 +1,99 @@
 # frozen_string_literal: true
-# typed: true
 
 # Exporter service: CSV, JSON, Markdown reports, and AI reports.
 # Ported from Python exporter.py.
 module ExporterService
-  extend T::Sig
-
   EXPORTS_PATH = ENV.fetch("EXPORTS_PATH", Rails.root.join("exports").to_s)
+  CACHE_TTL = 15.minutes
 
   # Fetch the latest quote per asset (or for a specific date).
-  sig { params(quote_date: T.nilable(Date)).returns(T::Array[T.untyped]) }
   def self.latest_quotes(quote_date: nil)
-    scope = Quote.includes(:asset)
+    scope = Quote.eager_load(:asset)
     if quote_date
-      scope.where(quote_date: quote_date)
+      scope.where(quote_date: quote_date).order("assets.ticker ASC")
     else
-      scope.where(
-        "(asset_id, quote_date) IN (SELECT asset_id, MAX(quote_date) FROM quotes GROUP BY asset_id)"
-      )
+      latest_per_asset = Quote.select("asset_id, MAX(quote_date) AS quote_date").group(:asset_id)
+
+      scope
+        .joins("INNER JOIN (#{latest_per_asset.to_sql}) latest_quotes ON latest_quotes.asset_id = quotes.asset_id AND latest_quotes.quote_date = quotes.quote_date")
+        .order("assets.ticker ASC")
     end.to_a
   end
 
+  def self.latest_rows(quote_date: nil)
+    Rails.cache.fetch(cache_key_for("latest_rows", quote_date: quote_date), expires_in: CACHE_TTL) do
+      latest_quotes(quote_date: quote_date).map { |quote| format_row(quote) }
+    end
+  end
+
+  def self.sorted_rows(quote_date: nil)
+    Rails.cache.fetch(cache_key_for("sorted_rows", quote_date: quote_date), expires_in: CACHE_TTL) do
+      latest_rows(quote_date: quote_date).sort_by { |row| [ row[:setor], row[:ticker] ] }
+    end
+  end
+
+  def self.dashboard_snapshot
+    Rails.cache.fetch(cache_key_for("dashboard_snapshot"), expires_in: CACHE_TTL) do
+      build_dashboard_snapshot(latest_rows)
+    end
+  end
+
+  def self.build_dashboard_snapshot(rows)
+    data = {
+      br_stocks: [],
+      us_stocks: [],
+      commodities: [],
+      crypto: [],
+      currency: [],
+      bullish: [],
+      bearish: [],
+      ibov_ytd: nil,
+      sp500_ytd: nil,
+      usd_brl: nil,
+      gainers: [],
+      losers: [],
+      watchlist_data: []
+    }
+
+    all_stocks = []
+    with_1d = []
+
+    rows.each do |row|
+      stock_row = false
+
+      case row[:tipo]
+      when "stock"
+        data[:br_stocks] << row
+        all_stocks << row
+        stock_row = true
+      when "us_stock"
+        data[:us_stocks] << row
+        all_stocks << row
+        stock_row = true
+      when "commodity"
+        data[:commodities] << row
+      when "crypto"
+        data[:crypto] << row
+      when "currency"
+        data[:currency] << row
+      end
+
+      with_1d << row if stock_row && row[:var_1d]
+      data[:bullish] << row if stock_row && row[:signal_summary] == "bullish"
+      data[:bearish] << row if stock_row && row[:signal_summary] == "bearish"
+      data[:ibov_ytd] ||= row[:ibov_change_ytd]
+      data[:sp500_ytd] ||= row[:sp500_change_ytd]
+      data[:usd_brl] ||= row[:preco_brl] if row[:tipo] == "currency"
+    end
+
+    data[:gainers] = with_1d.max_by(5) { |row| row[:var_1d] || 0 }
+    data[:losers] = with_1d.min_by(5) { |row| row[:var_1d] || 0 }
+    data[:watchlist_data] = WatchlistScorer.build(all_stocks)
+
+    data
+  end
+
   # Format a quote record into a flat hash suitable for export.
-  sig { params(quote: T.untyped).returns(T::Hash[Symbol, T.untyped]) }
   def self.format_row(quote)
     a = quote.asset
     {
@@ -105,21 +176,18 @@ module ExporterService
   end
 
   # --- CSV export ---
-  sig { params(quote_date: T.nilable(Date), filename: T.nilable(String)).returns(T.nilable(String)) }
   def self.export_csv(quote_date: nil, filename: nil)
-    quotes = latest_quotes(quote_date: quote_date)
-    return nil if quotes.empty?
+    rows = sorted_rows(quote_date: quote_date)
+    return nil if rows.empty?
 
     date_str = (quote_date || Date.current).strftime("%Y-%m-%d")
     filename ||= "cotacoes_#{date_str}.csv"
     filepath = File.join(EXPORTS_PATH, filename)
     FileUtils.mkdir_p(EXPORTS_PATH)
 
-    rows = quotes.map { |q| format_row(q) }.sort_by { |r| [ r[:setor], r[:ticker] ] }
-
     require "csv"
     CSV.open(filepath, "w", encoding: "UTF-8") do |csv|
-      first_row = T.must(rows.first)
+      first_row = rows.first
       csv << first_row.keys
       rows.each { |r| csv << r.values }
     end
@@ -129,17 +197,14 @@ module ExporterService
   end
 
   # --- JSON export ---
-  sig { params(quote_date: T.nilable(Date), filename: T.nilable(String)).returns(T.nilable(String)) }
   def self.export_json(quote_date: nil, filename: nil)
-    quotes = latest_quotes(quote_date: quote_date)
-    return nil if quotes.empty?
+    rows = sorted_rows(quote_date: quote_date)
+    return nil if rows.empty?
 
     date_str = (quote_date || Date.current).strftime("%Y-%m-%d")
     filename ||= "cotacoes_#{date_str}.json"
     filepath = File.join(EXPORTS_PATH, filename)
     FileUtils.mkdir_p(EXPORTS_PATH)
-
-    rows = quotes.map { |q| format_row(q) }.sort_by { |r| [ r[:setor], r[:ticker] ] }
 
     data = {
       data_exportacao: Time.current.strftime("%Y-%m-%d %H:%M:%S"),
@@ -153,12 +218,9 @@ module ExporterService
   end
 
   # --- Report data builder ---
-  sig { returns(T.nilable(T::Hash[Symbol, T.untyped])) }
   def self.report_data
-    quotes = latest_quotes
-    return nil if quotes.empty?
-
-    rows = quotes.map { |q| format_row(q) }
+    rows = latest_rows
+    return nil if rows.empty?
 
     br   = rows.select { |r| r[:tipo] == "stock" }
     us   = rows.select { |r| r[:tipo] == "us_stock" }
@@ -208,8 +270,24 @@ module ExporterService
     }
   end
 
+  def self.cache_key_for(scope, quote_date: nil)
+    [
+      "exporter_service",
+      scope,
+      quote_date&.iso8601 || "latest",
+      cache_version_for(quote_date: quote_date)
+    ]
+  end
+
+  def self.cache_version_for(quote_date: nil)
+    scope = quote_date ? Quote.where(quote_date: quote_date) : Quote.all
+    timestamp = scope.maximum(:updated_at) || scope.maximum(:fetched_at)
+
+    timestamp ? timestamp.utc.iso8601(6) : "empty"
+  end
+  private_class_method :build_dashboard_snapshot, :cache_key_for, :cache_version_for
+
   # --- Markdown report ---
-  sig { params(filename: T.nilable(String)).returns(T.nilable(String)) }
   def self.export_human_report(filename: nil)
     data = report_data
     return nil unless data
@@ -291,7 +369,6 @@ module ExporterService
   end
 
   # --- AI JSON report ---
-  sig { params(filename: T.nilable(String)).returns(T.nilable(String)) }
   def self.export_ai_report(filename: nil)
     data = report_data
     return nil unless data
@@ -362,7 +439,6 @@ module ExporterService
   end
 
   # --- Generate both reports ---
-  sig { returns([ T.nilable(String), T.nilable(String) ]) }
   def self.generate_reports
     human = export_human_report
     ai    = export_ai_report
@@ -370,7 +446,6 @@ module ExporterService
   end
 
   # --- Polymarket data for report ---
-  sig { returns(T::Hash[String, T.untyped]) }
   def self.polymarket_for_report
     asset_markets = PolymarketClient.fetch_sentiment
     result = {}

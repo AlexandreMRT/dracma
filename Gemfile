@@ -48,10 +48,6 @@ group :development, :test do
   gem "rubocop-rails-omakase", require: false
   gem "rubocop-minitest", require: false
 
-  # Type checking
-  gem "sorbet", require: false
-  gem "tapioca", "~> 0.17.10", require: false
-
   # Git hooks
   gem "lefthook", require: false
 end
@@ -72,8 +68,6 @@ group :test do
 end
 
 # B3 Tracker / Dracma dependencies
-gem "sorbet-runtime"
-gem "jwt"
-gem "omniauth-google-oauth2"
 gem "csv"
+gem "omniauth-google-oauth2"
 gem "rack-attack"

@@ -10,12 +10,11 @@
 
 Dracma is a Brazilian stock market (B3) tracker and portfolio manager built with **Rails 8.1.2** (Ruby 3.3+, PostgreSQL 16). Migrated from a Python/FastAPI application (`b3_tracker`).
 
-**Stack:** Hotwire (Turbo + Stimulus), Tailwind CSS v4, Propshaft, Importmap (no webpack/esbuild), Solid Queue/Cache/Cable, Sorbet, RuboCop (Rails Omakase), Brakeman, Minitest, Lefthook, Rack::Attack, SimpleCov.
+**Stack:** Hotwire (Turbo + Stimulus), Tailwind CSS v4, Propshaft, Importmap (no webpack/esbuild), Solid Queue/Cache/Cable, RuboCop (Rails Omakase), Brakeman, Minitest, Lefthook, Rack::Attack, SimpleCov.
 
 **Key architectural decisions:**
 - **Service-object pattern** — all business logic lives in `app/services/`, controllers are thin
-- **Sorbet typing** — all services use `# typed: true` with full method signatures
-- **Hash-based data flow** — quote data flows as `Hash[Symbol, T.untyped]` through the pipeline
+- **Hash-based data flow** — quote data flows as symbol-keyed hashes through the pipeline
 - **Static asset catalog** — assets defined as frozen hashes in `AssetCatalog`, not in DB
 - **English code** — all code, comments, and variable names are in English
 
@@ -23,20 +22,16 @@ Dracma is a Brazilian stock market (B3) tracker and portfolio manager built with
 
 ## Mandatory Rules
 
-### 1. Service Files — Always Use Sorbet
+### 1. Service Files — Keep Them Plain Ruby
 
 Every file in `app/services/` MUST start with:
 ```ruby
 # frozen_string_literal: true
-# typed: true
 ```
 
-Every service MUST use `extend T::Sig` and have Sorbet signatures on **all** methods:
+Every service should expose small, explicit entry points and keep integration/parsing details close to the owning service:
 ```ruby
 module MyService
-  extend T::Sig
-
-  sig { params(data: T::Hash[Symbol, T.untyped]).returns(T::Hash[Symbol, T.untyped]) }
   def self.process(data)
     # ...
   end
@@ -46,17 +41,6 @@ end
 **Two service patterns used:**
 - **Module** (stateless, class methods only): `SignalDetector`, `WatchlistScorer`, `SentimentAnalyzer`, `ExporterService`, `PortfolioService`
 - **Class** (stateful, instance state): `QuoteFetcher`, `YahooFinanceClient`, `NewsFetcher`, `PolymarketClient`
-
-**Common Sorbet types:**
-
-| Ruby Type | Sorbet Annotation |
-|-----------|------------------|
-| Hash with symbol keys | `T::Hash[Symbol, T.untyped]` |
-| Array of hashes | `T::Array[T::Hash[Symbol, T.untyped]]` |
-| Nullable float | `T.nilable(Float)` |
-| String or nil | `T.nilable(String)` |
-| Boolean | `T::Boolean` |
-| No return value | `void` |
 
 ### 2. Controllers — Thin, Delegate to Services
 
@@ -156,7 +140,6 @@ Or individually:
 bin/rails test                # Tests (must pass 100%)
 bundle exec rubocop           # Linting (0 offenses)
 bin/brakeman --no-pager       # Security (0 warnings)
-bundle exec srb tc            # Type checking (0 errors)
 ```
 
 **Automated enforcement:**
@@ -179,7 +162,6 @@ rsi = g.call(:rsi_14)
 
 Or dual-key helper (WatchlistScorer pattern):
 ```ruby
-sig { params(row: T::Hash[Symbol, T.untyped], key: Symbol).returns(T.untyped) }
 def self.value_for(row, key)
   row[key] || row[key.to_s]
 end
@@ -227,8 +209,8 @@ end
 ### Scoring with Reasons Array
 
 ```ruby
-score = T.let(0.0, Float)
-reasons = T.let([], T::Array[String])
+score = 0.0
+reasons = []
 
 if rsi && rsi < 30
   score += 15
@@ -357,14 +339,13 @@ end
 
 ## When Adding New Features
 
-- [ ] Service has `# frozen_string_literal: true` and `# typed: true`
-- [ ] Service uses `extend T::Sig` with signatures on **every** method (including private)
+- [ ] Service has `# frozen_string_literal: true`
+- [ ] Service exposes a clear entry point and keeps business logic out of controllers/models
 - [ ] Controller is thin — logic delegated to service
 - [ ] Test file created with meaningful test cases (both happy path and edge cases)
 - [ ] Fixtures updated if new models added
 - [ ] Migration created if schema changes needed
 - [ ] Route added in `config/routes.rb`
-- [ ] `bin/tapioca dsl` run if new ActiveRecord models added
 - [ ] Stimulus controller follows `*_controller.js` naming with `static values`/`targets`
 - [ ] All 4 validation commands pass (`bin/check`)
 - [ ] Security: new endpoints have appropriate rate limiting and auth
@@ -379,7 +360,6 @@ end
 | `ROADMAP.md` | Feature plans and priorities |
 | `CONTRIBUTING.md` | Full detailed conventions guide (1300+ lines) |
 | `.rubocop.yml` | Linting configuration |
-| `sorbet/config` | Type checking ignores |
 | `config/routes.rb` | All routes |
 | `config/recurring.yml` | Job schedule |
 | `test/test_helper.rb` | Test setup, `login_as`, WebMock, SimpleCov, parallel config |
