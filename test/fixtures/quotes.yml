@@ -10,6 +10,11 @@ petr4_today:
   change_ytd: 8.45
   rsi_14: 55.3
   signal_summary: neutral
+  news_sentiment_pt: 0.52
+  news_sentiment_combined: 0.45
+  news_count_pt: 2
+  news_headline_pt: Petrobras sobe com alta do petroleo
+  news_sentiment_label: positive
   quote_date: 2026-02-10
   fetched_at: 2026-02-10 18:00:00
 
@@ -26,5 +31,10 @@ aapl_today:
   rsi_14: 62.1
   signal_summary: bullish
   signal_golden_cross: 1
+  news_sentiment_en: -0.40
+  news_sentiment_combined: -0.35
+  news_count_en: 3
+  news_headline_en: Apple faces pressure from weaker device demand
+  news_sentiment_label: negative
   quote_date: 2026-02-10
   fetched_at: 2026-02-10 18:00:00

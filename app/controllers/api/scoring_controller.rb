@@ -3,8 +3,7 @@
 module Api
   class ScoringController < BaseController
     def index
-      rows = ExporterService.latest_rows
-      stocks = rows.select { |r| %w[stock us_stock].include?(r[:tipo]) }
+      stocks = ApiDataService.rows.select { |row| %w[stock us_stock].include?(row[:tipo].to_s) }
 
       result = WatchlistScorer.build(stocks)
       render_json(result)
