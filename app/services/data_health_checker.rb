@@ -10,9 +10,9 @@ module DataHealthChecker
     total_assets = Asset.count
     assets_with_quotes = latest_quotes.size
 
-    stale_cutoff = stale_after_hours.to_i.hours.ago
+    stale_cutoff = stale_after_hours.to_f.hours.ago
     stale_quotes = latest_quotes.select { |quote| quote.fetched_at.nil? || quote.fetched_at < stale_cutoff }
-    missing_price_quotes = latest_quotes.select { |quote| quote.price_brl.nil? || quote.price_usd.nil? }
+    missing_price_quotes = latest_quotes.select { |quote| quote.price_brl.to_f <= 0.0 || quote.price_usd.nil? }
     missing_volume_quotes = latest_quotes.select { |quote| quote.volume.nil? || quote.volume.to_f <= 0 }
     outlier_quotes = latest_quotes.select do |quote|
       change = quote.change_1d
@@ -80,7 +80,10 @@ module DataHealthChecker
   end
 
   def self.sample_tickers(quotes)
-    quotes.first(MAX_SAMPLE_SIZE).map { |quote| quote.asset&.ticker }.compact
+    quotes.sort_by { |quote| quote.asset&.ticker.to_s }
+          .first(MAX_SAMPLE_SIZE)
+          .map { |quote| quote.asset&.ticker }
+          .compact
   end
 
   private_class_method :latest_quotes_for_assets, :status_for, :ratio, :sample_tickers
