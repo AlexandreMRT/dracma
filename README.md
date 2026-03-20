@@ -4,7 +4,7 @@ Brazilian stock market (B3) tracker and portfolio manager built with Ruby on Rai
 
 Migrated from a Python/FastAPI application ([b3_tracker](../b3_tracker)).
 
-## Current Status (2026-02-20)
+## Current Status (2026-03-19)
 
 - **128/128 assets** tracked and processed
 - **101 Brazilian stocks** + 20 US stocks + 4 commodities + 2 crypto + 1 currency
@@ -12,7 +12,10 @@ Migrated from a Python/FastAPI application ([b3_tracker](../b3_tracker)).
 - **Bilingual news sentiment** — Portuguese (60%) + English (40%) weighted scoring
 - **Polymarket integration** — prediction market sentiment for crypto, macro, and geopolitics
 - **Algorithmic watchlist** — composite scoring from RSI, trend, news, 52W proximity, and more
+- **Parallel quote fetching** — threaded fetch pipeline for faster full-market refreshes
 - **Multi-user** — Google OAuth 2.0 with session-based auth
+- **Expanded JSON API** — quotes, signals, scoring, sectors, movers, news, report, refresh, watchlist, portfolios, health
+- **CLI tasks** — `rails quotes:*` and `rails export:*` task suite
 - **Scheduled** — quotes fetched 3x/day on weekdays, reports generated daily at 18:30
 
 ## Features
@@ -176,8 +179,20 @@ Migrated from a Python/FastAPI application ([b3_tracker](../b3_tracker)).
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/quotes` | All quotes (filter: `?date=`) |
+| GET | `/api/quotes/:id` | Single asset details + recent history |
 | GET | `/api/signals` | Trading signals (bullish, bearish, RSI, 52W, volume) |
 | GET | `/api/scoring` | Algorithmic watchlist scoring |
+| GET | `/api/health/data` | Data quality and freshness summary |
+| GET | `/api/sectors` | Sector performance aggregation |
+| GET | `/api/movers` | Top gainers/losers (`?period=&limit=`) |
+| GET | `/api/news` | News sentiment feed (`?sentiment=&limit=`) |
+| GET | `/api/report` | Consolidated AI-ready report payload |
+| POST | `/api/refresh` | Trigger quote refresh job |
+| GET/POST/DELETE | `/api/watchlist` | Watchlist JSON CRUD |
+| CRUD | `/api/portfolios` | Portfolio JSON CRUD |
+| GET | `/api/portfolios/:id/performance` | Portfolio performance metrics |
+| GET | `/api/portfolios/:id/positions` | Portfolio positions with P&L |
+| GET/POST/DELETE | `/api/portfolios/:id/transactions` | Portfolio transaction JSON CRUD |
 
 All routes require login except `/login` and `/auth/*`.
 
@@ -282,8 +297,18 @@ app/
 ├── controllers/           # Thin controllers, delegate to services
 │   ├── api/               # JSON API (BaseController skips CSRF)
 │   │   ├── base_controller.rb
+│   │   ├── health_controller.rb
+│   │   ├── movers_controller.rb
+│   │   ├── news_controller.rb
+│   │   ├── portfolio_positions_controller.rb
+│   │   ├── portfolio_transactions_controller.rb
+│   │   ├── portfolios_controller.rb
 │   │   ├── quotes_controller.rb
+│   │   ├── refresh_controller.rb
+│   │   ├── report_controller.rb
 │   │   ├── scoring_controller.rb
+│   │   ├── sectors_controller.rb
+│   │   ├── watchlists_controller.rb
 │   │   └── signals_controller.rb
 │   ├── application_controller.rb  # Global require_login
 │   ├── dashboard_controller.rb
@@ -313,6 +338,7 @@ app/
 │   ├── polymarket_client.rb      # Prediction market sentiment
 │   ├── portfolio_service.rb      # Portfolio CRUD & P&L calculation
 │   ├── quote_fetcher.rb          # Orchestrator: fetch → detect → save
+│   ├── data_health_checker.rb    # Data freshness and quality monitor
 │   ├── sentiment_analyzer.rb     # VADER-inspired bilingual scoring
 │   ├── signal_detector.rb        # 10 signal types, classification
 │   ├── watchlist_scorer.rb       # Composite scoring algorithm
@@ -350,13 +376,10 @@ kamal deploy   # subsequent deploys
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for detailed plans including:
-- Parallel quote fetching (8-worker thread pool)
-- Additional API endpoints (sectors, movers, news, refresh)
-- Rake tasks for CLI operations
-- CI/CD pipeline (GitHub Actions)
+- API documentation (OpenAPI/Swagger)
+- Increased test coverage (services + system tests)
 - Telegram bot alerts
 - Weekly email reports
-- Data quality monitoring
 - Oracle Cloud deployment
 
 ## Contributing
