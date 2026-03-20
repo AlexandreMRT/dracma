@@ -29,9 +29,23 @@ Rails.application.routes.draw do
 
   # API namespace for Turbo/JSON endpoints
   namespace :api do
-    resources :quotes, only: [ :index ]
+    resources :quotes, only: [ :index, :show ]
     get "signals", to: "signals#index"
     get "scoring", to: "scoring#index"
+    get "sectors", to: "sectors#index"
+    get "movers", to: "movers#index"
+    get "news", to: "news#index"
+    get "report", to: "report#show"
+    post "refresh", to: "refresh#create"
+
+    resources :watchlists, path: "watchlist", only: [ :index, :create, :destroy ]
+    resources :portfolios do
+      member do
+        get :performance
+      end
+      resources :positions, only: [ :index ], controller: "portfolio_positions"
+      resources :transactions, only: [ :index, :create, :destroy ], controller: "portfolio_transactions"
+    end
   end
 
   # Health check
