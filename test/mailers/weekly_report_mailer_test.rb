@@ -15,26 +15,31 @@ class WeeklyReportMailerTest < ActionMailer::TestCase
 
   test "sends to the user's email address" do
     mail = WeeklyReportMailer.weekly_summary(@user)
-    assert_equal [@user.email], mail.to
+
+    assert_equal [ @user.email ], mail.to
   end
 
   test "subject contains weekly market summary" do
     mail = WeeklyReportMailer.weekly_summary(@user)
+
     assert_match "Weekly Market Summary", mail.subject
   end
 
   test "subject contains current week label" do
     mail = WeeklyReportMailer.weekly_summary(@user)
+
     assert_match Date.current.strftime("%Y"), mail.subject
   end
 
   test "html body includes user name" do
     mail = WeeklyReportMailer.weekly_summary(@user)
+
     assert_match @user.name, mail.html_part.body.to_s
   end
 
   test "text body includes user name" do
     mail = WeeklyReportMailer.weekly_summary(@user)
+
     assert_match @user.name, mail.text_part.body.to_s
   end
 
@@ -52,6 +57,7 @@ class WeeklyReportMailerTest < ActionMailer::TestCase
     ExporterService.define_singleton_method(:latest_rows) { |**| [ row ] }
 
     mail = WeeklyReportMailer.weekly_summary(@user)
+
     assert_match "PETR4", mail.html_part.body.to_s
     assert_match "+5.2%", mail.html_part.body.to_s
   end
@@ -64,6 +70,7 @@ class WeeklyReportMailerTest < ActionMailer::TestCase
     ExporterService.define_singleton_method(:latest_rows) { |**| [ row ] }
 
     mail = WeeklyReportMailer.weekly_summary(@user)
+
     assert_match "IBOV YTD", mail.html_part.body.to_s
     assert_match "+7.5%", mail.html_part.body.to_s
   end
