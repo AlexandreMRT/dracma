@@ -31,7 +31,9 @@ echo -e "${BOLD}[2/4] Running RuboCop...${RESET}"
 bundle exec rubocop && pass "RuboCop" || fail "RuboCop"
 
 echo -e "${BOLD}[3/4] Running Brakeman...${RESET}"
-bin/brakeman --no-pager && pass "Brakeman" || fail "Brakeman"
+set +e; bin/brakeman --no-pager; brakeman_exit=$?; set -e
+# Exit code 5 = outdated version note only, no security warnings — treat as pass
+if [ $brakeman_exit -eq 0 ] || [ $brakeman_exit -eq 5 ]; then pass "Brakeman"; else fail "Brakeman"; fi
 
 echo -e "${BOLD}[4/4] Running Sorbet type check...${RESET}"
 bin/srb-check && pass "Sorbet" || fail "Sorbet"

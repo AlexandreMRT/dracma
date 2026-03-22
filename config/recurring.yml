@@ -28,3 +28,8 @@ production:
     class: CleanExportsJob
     queue: default
     schedule: every Sunday at 3am
+
+  send_weekly_email:
+    class: WeeklyEmailJob
+    queue: default
+    schedule: "30 18 * * 5"
