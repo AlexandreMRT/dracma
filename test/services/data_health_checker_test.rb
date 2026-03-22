@@ -37,6 +37,7 @@ class DataHealthCheckerTest < ActiveSupport::TestCase
     assert_operator report.dig(:totals, :stale_assets), :>=, baseline.dig(:totals, :stale_assets) + 1
     assert_operator report.dig(:totals, :missing_volume_assets), :>=, baseline.dig(:totals, :missing_volume_assets) + 1
     assert_operator report.dig(:totals, :outlier_change_1d_assets), :>=, baseline.dig(:totals, :outlier_change_1d_assets) + 1
+    assert report.dig(:totals).key?(:coverage_percent)
     assert_includes report.dig(:samples, :stale_tickers), "STALE"
     assert_includes report.dig(:samples, :missing_volume_tickers), "STALE"
     assert_includes report.dig(:samples, :outlier_change_1d_tickers), "STALE"
@@ -48,5 +49,36 @@ class DataHealthCheckerTest < ActiveSupport::TestCase
     assert_equal "critical", report[:status]
     assert_operator report.dig(:totals, :assets_with_quotes), :>=, 1
     assert_operator report.dig(:totals, :stale_assets), :>=, 1
+  end
+
+  test "report is warning when outliers exist without other issues" do
+    outlier_asset = Asset.create!(ticker: "OUTLIER", name: "Outlier Asset", sector: "test", asset_type: "stock", unit: "")
+
+    Quote.create!(
+      asset: outlier_asset,
+      quote_date: Time.current,
+      price_brl: 50.0,
+      price_usd: 10.0,
+      volume: 1_000,
+      change_1d: 25.0,
+      fetched_at: Time.current
+    )
+
+    report = DataHealthChecker.report(stale_after_hours: 100_000, outlier_change_1d_pct: 15.0)
+
+    assert_equal "warning", report[:status]
+    assert_operator report.dig(:totals, :outlier_change_1d_assets), :>=, 1
+  end
+
+  test "report is warning when no assets exist" do
+    Quote.delete_all
+    Asset.delete_all
+
+    report = DataHealthChecker.report
+
+    assert_equal "warning", report[:status]
+    assert_equal 0, report.dig(:totals, :assets)
+    assert_equal 0, report.dig(:totals, :assets_with_quotes)
+    assert_equal 0.0, report.dig(:totals, :coverage_percent)
   end
 end

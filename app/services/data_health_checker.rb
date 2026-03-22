@@ -25,7 +25,8 @@ module DataHealthChecker
         assets_with_quotes: assets_with_quotes,
         stale_count: stale_quotes.size,
         missing_price_count: missing_price_quotes.size,
-        missing_volume_count: missing_volume_quotes.size
+        missing_volume_count: missing_volume_quotes.size,
+        outlier_count: outlier_quotes.size
       ),
       generated_at: Time.current.iso8601,
       latest_quote_date: latest_quotes.map(&:quote_date).compact.max&.strftime("%Y-%m-%d"),
@@ -36,7 +37,7 @@ module DataHealthChecker
         missing_price_assets: missing_price_quotes.size,
         missing_volume_assets: missing_volume_quotes.size,
         outlier_change_1d_assets: outlier_quotes.size,
-        coverage_ratio: ratio(assets_with_quotes, total_assets)
+        coverage_percent: percent(assets_with_quotes, total_assets)
       },
       samples: {
         stale_tickers: sample_tickers(stale_quotes),
@@ -48,32 +49,27 @@ module DataHealthChecker
   end
 
   def self.latest_quotes_for_assets
+    latest_per_asset = Quote.select("asset_id, MAX(quote_date) AS quote_date").group(:asset_id)
+
     Quote
-      .joins(
-        "INNER JOIN (\
-          SELECT asset_id, MAX(quote_date) AS latest_quote_date\
-          FROM quotes\
-          GROUP BY asset_id\
-        ) latest_quotes\
-        ON latest_quotes.asset_id = quotes.asset_id\
-        AND latest_quotes.latest_quote_date = quotes.quote_date"
-      )
+      .joins("INNER JOIN (#{latest_per_asset.to_sql}) latest_quotes ON latest_quotes.asset_id = quotes.asset_id AND latest_quotes.quote_date = quotes.quote_date")
       .includes(:asset)
       .to_a
   end
 
-  def self.status_for(total_assets:, assets_with_quotes:, stale_count:, missing_price_count:, missing_volume_count:)
+  def self.status_for(total_assets:, assets_with_quotes:, stale_count:, missing_price_count:, missing_volume_count:, outlier_count:)
+    return "warning" if total_assets.zero?
     return "critical" if total_assets.positive? && assets_with_quotes.zero?
     return "critical" if assets_with_quotes.positive? && stale_count >= (assets_with_quotes / 2.0).ceil
 
-    if stale_count.positive? || missing_price_count.positive? || missing_volume_count.positive?
+    if stale_count.positive? || missing_price_count.positive? || missing_volume_count.positive? || outlier_count.positive?
       "warning"
     else
       "healthy"
     end
   end
 
-  def self.ratio(numerator, denominator)
+  def self.percent(numerator, denominator)
     return 0.0 if denominator.to_i <= 0
 
     ((numerator.to_f / denominator.to_f) * 100.0).round(1)
@@ -86,5 +82,5 @@ module DataHealthChecker
           .compact
   end
 
-  private_class_method :latest_quotes_for_assets, :status_for, :ratio, :sample_tickers
+  private_class_method :latest_quotes_for_assets, :status_for, :percent, :sample_tickers
 end
