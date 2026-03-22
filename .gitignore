@@ -38,3 +38,5 @@
 
 # SimpleCov coverage reports
 /coverage/
+
+.github/prompts/
