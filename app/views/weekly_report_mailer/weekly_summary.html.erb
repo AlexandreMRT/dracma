@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dracma — Weekly Market Summary</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f3f4f6;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f3f4f6;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="background-color:#ffffff;border-radius:8px;max-width:600px;width:100%;">
+
+          <%# ====== Header ====== %>
+          <tr>
+            <td style="background-color:#064e3b;padding:24px 32px;border-radius:8px 8px 0 0;">
+              <p style="margin:0;font-size:22px;font-weight:bold;color:#ffffff;letter-spacing:-0.5px;">Dracma</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#6ee7b7;"><%= @week_label %></p>
+            </td>
+          </tr>
+
+          <%# ====== Greeting ====== %>
+          <tr>
+            <td style="padding:24px 32px 8px;">
+              <p style="margin:0;color:#374151;font-size:15px;">Hi, <strong><%= @user.name %></strong></p>
+              <p style="margin:6px 0 0;color:#6b7280;font-size:13px;">Here's your weekly snapshot of the Brazilian and US markets.</p>
+            </td>
+          </tr>
+
+          <%# ====== Divider ====== %>
+          <tr>
+            <td style="padding:0 32px;"><hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;"></td>
+          </tr>
+
+          <%# ====== Market Overview ====== %>
+          <tr>
+            <td style="padding:0 32px 16px;">
+              <p style="margin:0 0 12px;font-size:11px;font-weight:bold;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;">Market Overview</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <% [["IBOV YTD", @ibov_ytd, :pct], ["S&P 500 YTD", @sp500_ytd, :pct], ["USD/BRL", @usd_brl, :price]].each_with_index do |(label, value, kind), i| %>
+                    <td width="33%" style="<%= i < 2 ? "padding-right:8px;" : "" %>">
+                      <div style="background-color:#f9fafb;border-radius:6px;padding:12px;text-align:center;">
+                        <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;"><%= label %></div>
+                        <% if value.nil? %>
+                          <div style="font-size:18px;font-weight:bold;color:#9ca3af;">N/A</div>
+                        <% elsif kind == :price %>
+                          <div style="font-size:18px;font-weight:bold;color:#1f2937;">R$&nbsp;<%= sprintf("%.2f", value) %></div>
+                        <% else %>
+                          <% color = value >= 0 ? "#059669" : "#dc2626" %>
+                          <div style="font-size:18px;font-weight:bold;color:<%= color %>;"><%= value >= 0 ? "+" : "" %><%= sprintf("%.1f", value) %>%</div>
+                        <% end %>
+                      </div>
+                    </td>
+                  <% end %>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <%# ====== Top Weekly Movers ====== %>
+          <tr>
+            <td style="padding:0 32px 16px;">
+              <p style="margin:0 0 12px;font-size:11px;font-weight:bold;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;">Top Movers This Week</p>
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr valign="top">
+                  <td width="49%" style="padding-right:6px;">
+                    <div style="background-color:#ecfdf5;border-radius:6px;padding:14px;">
+                      <p style="margin:0 0 10px;font-size:11px;font-weight:bold;color:#065f46;text-transform:uppercase;letter-spacing:0.05em;">Top Gainers (1W)</p>
+                      <% if @gainers.empty? %>
+                        <p style="margin:0;font-size:12px;color:#9ca3af;">No data available</p>
+                      <% else %>
+                        <% @gainers.each do |row| %>
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:5px;">
+                            <tr>
+                              <td style="font-size:13px;font-weight:bold;color:#1f2937;"><%= row[:ticker] %></td>
+                              <td align="right" style="font-size:13px;font-weight:bold;color:#059669;">+<%= sprintf("%.1f", row[:var_1w]) %>%</td>
+                            </tr>
+                          </table>
+                        <% end %>
+                      <% end %>
+                    </div>
+                  </td>
+                  <td width="49%" style="padding-left:6px;">
+                    <div style="background-color:#fef2f2;border-radius:6px;padding:14px;">
+                      <p style="margin:0 0 10px;font-size:11px;font-weight:bold;color:#991b1b;text-transform:uppercase;letter-spacing:0.05em;">Top Losers (1W)</p>
+                      <% if @losers.empty? %>
+                        <p style="margin:0;font-size:12px;color:#9ca3af;">No data available</p>
+                      <% else %>
+                        <% @losers.each do |row| %>
+                          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:5px;">
+                            <tr>
+                              <td style="font-size:13px;font-weight:bold;color:#1f2937;"><%= row[:ticker] %></td>
+                              <td align="right" style="font-size:13px;font-weight:bold;color:#dc2626;"><%= sprintf("%.1f", row[:var_1w]) %>%</td>
+                            </tr>
+                          </table>
+                        <% end %>
+                      <% end %>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <%# ====== Active Signals ====== %>
+          <% if @bullish.any? || @bearish.any? %>
+            <tr>
+              <td style="padding:0 32px 16px;">
+                <p style="margin:0 0 12px;font-size:11px;font-weight:bold;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;">Active Signals</p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                  <tr valign="top">
+                    <% if @bullish.any? %>
+                      <td width="49%" style="<%= @bearish.any? ? "padding-right:6px;" : "" %>">
+                        <div style="background-color:#ecfdf5;border-radius:6px;padding:14px;">
+                          <p style="margin:0 0 8px;font-size:11px;font-weight:bold;color:#065f46;text-transform:uppercase;letter-spacing:0.05em;">Bullish · <%= @bullish.size %></p>
+                          <p style="margin:0;font-size:13px;color:#374151;line-height:1.7;"><%= @bullish.map { |r| r[:ticker] }.join(" &middot; ").html_safe %></p>
+                        </div>
+                      </td>
+                    <% end %>
+                    <% if @bearish.any? %>
+                      <td width="49%" style="<%= @bullish.any? ? "padding-left:6px;" : "" %>">
+                        <div style="background-color:#fef2f2;border-radius:6px;padding:14px;">
+                          <p style="margin:0 0 8px;font-size:11px;font-weight:bold;color:#991b1b;text-transform:uppercase;letter-spacing:0.05em;">Bearish · <%= @bearish.size %></p>
+                          <p style="margin:0;font-size:13px;color:#374151;line-height:1.7;"><%= @bearish.map { |r| r[:ticker] }.join(" &middot; ").html_safe %></p>
+                        </div>
+                      </td>
+                    <% end %>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          <% end %>
+
+          <%# ====== Portfolio Performance ====== %>
+          <% if @portfolios.any? %>
+            <tr>
+              <td style="padding:0 32px 16px;">
+                <p style="margin:0 0 12px;font-size:11px;font-weight:bold;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;">Your Portfolio</p>
+                <% @portfolios.each do |entry| %>
+                  <% portfolio = entry[:portfolio] %>
+                  <% perf = entry[:performance] %>
+                  <div style="background-color:#f9fafb;border-radius:6px;padding:16px;margin-bottom:10px;">
+                    <p style="margin:0 0 12px;font-size:14px;font-weight:bold;color:#1f2937;"><%= portfolio.name %></p>
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td style="padding-right:12px;">
+                          <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Invested</div>
+                          <div style="font-size:15px;font-weight:bold;color:#1f2937;">R$&nbsp;<%= sprintf("%.2f", perf[:total_invested]) %></div>
+                        </td>
+                        <td style="padding-right:12px;">
+                          <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">Current Value</div>
+                          <div style="font-size:15px;font-weight:bold;color:#1f2937;">R$&nbsp;<%= sprintf("%.2f", perf[:total_current_value]) %></div>
+                        </td>
+                        <td>
+                          <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px;">P&amp;L</div>
+                          <% pnl_color = perf[:total_profit_loss] >= 0 ? "#059669" : "#dc2626" %>
+                          <div style="font-size:15px;font-weight:bold;color:<%= pnl_color %>;">
+                            <%= perf[:total_profit_loss] >= 0 ? "+" : "" %>R$&nbsp;<%= sprintf("%.2f", perf[:total_profit_loss]) %>&nbsp;(<%= perf[:total_profit_loss_pct] >= 0 ? "+" : "" %><%= sprintf("%.1f", perf[:total_profit_loss_pct]) %>%)
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                    <% if perf[:dividend_income] > 0 %>
+                      <p style="margin:8px 0 0;font-size:12px;color:#059669;">+ R$&nbsp;<%= sprintf("%.2f", perf[:dividend_income]) %> in dividends received</p>
+                    <% end %>
+                  </div>
+                <% end %>
+              </td>
+            </tr>
+          <% end %>
+
+          <%# ====== Footer ====== %>
+          <tr>
+            <td style="padding:20px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;border-radius:0 0 8px 8px;">
+              <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center;line-height:1.6;">
+                Sent by <strong>Dracma</strong> — B3 Market Tracker &amp; Portfolio Manager.<br>
+                Market data may be delayed. This is not financial advice.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

@@ -1,0 +1,70 @@
+Dracma — Weekly Market Summary
+<%= @week_label %>
+================================================================================
+
+Hi <%= @user.name %>,
+
+Here's your weekly snapshot of the Brazilian and US markets.
+
+
+MARKET OVERVIEW
+---------------
+IBOV YTD:    <%= @ibov_ytd ? "#{"+" if @ibov_ytd >= 0}#{sprintf("%.1f", @ibov_ytd)}%" : "N/A" %>
+S&P 500 YTD: <%= @sp500_ytd ? "#{"+" if @sp500_ytd >= 0}#{sprintf("%.1f", @sp500_ytd)}%" : "N/A" %>
+USD/BRL:     <%= @usd_brl ? "R$ #{sprintf("%.2f", @usd_brl)}" : "N/A" %>
+
+
+TOP GAINERS THIS WEEK
+---------------------
+<% if @gainers.empty? %>
+No data available.
+<% else %>
+<% @gainers.each do |row| %>
+<%= row[:ticker].ljust(10) %> +<%= sprintf("%.1f", row[:var_1w]) %>%
+<% end %>
+<% end %>
+
+
+TOP LOSERS THIS WEEK
+--------------------
+<% if @losers.empty? %>
+No data available.
+<% else %>
+<% @losers.each do |row| %>
+<%= row[:ticker].ljust(10) %> <%= sprintf("%.1f", row[:var_1w]) %>%
+<% end %>
+<% end %>
+
+<% if @bullish.any? %>
+
+BULLISH SIGNALS (<%= @bullish.size %>)
+------------------
+<%= @bullish.map { |r| r[:ticker] }.join(", ") %>
+<% end %>
+<% if @bearish.any? %>
+
+BEARISH SIGNALS (<%= @bearish.size %>)
+------------------
+<%= @bearish.map { |r| r[:ticker] }.join(", ") %>
+<% end %>
+
+<% if @portfolios.any? %>
+
+YOUR PORTFOLIO
+--------------
+<% @portfolios.each do |entry| %>
+<% portfolio = entry[:portfolio] %>
+<% perf = entry[:performance] %>
+<%= portfolio.name %>
+  Invested:      R$ <%= sprintf("%.2f", perf[:total_invested]) %>
+  Current Value: R$ <%= sprintf("%.2f", perf[:total_current_value]) %>
+  P&L:           <%= perf[:total_profit_loss] >= 0 ? "+" : "" %>R$ <%= sprintf("%.2f", perf[:total_profit_loss]) %> (<%= perf[:total_profit_loss_pct] >= 0 ? "+" : "" %><%= sprintf("%.1f", perf[:total_profit_loss_pct]) %>%)
+<% if perf[:dividend_income] > 0 %>
+  Dividends:     +R$ <%= sprintf("%.2f", perf[:dividend_income]) %>
+<% end %>
+<% end %>
+<% end %>
+
+================================================================================
+Sent by Dracma — B3 Market Tracker & Portfolio Manager.
+Market data may be delayed. This is not financial advice.
