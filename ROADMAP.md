@@ -2,7 +2,7 @@
 
 > This file is structured for AI consumption. Use it to continue development in future sessions.
 
-## Current State (v1.0 — 2026-02-20)
+## Current State (v1.1 — 2026-03-19)
 
 ### Implemented Features
 
@@ -41,6 +41,10 @@
 - [x] **Test suite** — Minitest + WebMock + fixtures, parallel execution
 - [x] Stimulus controllers: flash (auto-dismiss), auto_refresh, confirm, sortable
 - [x] JSON API namespace: `/api/quotes`, `/api/signals`, `/api/scoring`
+- [x] Expanded JSON API: sectors, movers, news, report, refresh, watchlist, portfolios, positions, transactions, performance
+- [x] Data health endpoint: `/api/health/data`
+- [x] Parallel quote fetching with configurable worker pool (`QUOTE_FETCHER_CONCURRENCY`)
+- [x] Rake task suite: `quotes:*` and `export:*`
 
 ### Tech Stack
 
@@ -57,7 +61,7 @@
 ## Priority Features (Next Up)
 
 ### 1. Parallel Quote Fetching ⚡
-**Priority: HIGH | Effort: MEDIUM**
+**Status: DONE (2026-03-19)**
 
 The Python b3_tracker fetches all 128 assets in ~30s using ThreadPoolExecutor with 8 workers. Dracma currently fetches sequentially, which is significantly slower.
 
@@ -76,7 +80,7 @@ The Python b3_tracker fetches all 128 assets in ~30s using ThreadPoolExecutor wi
 ---
 
 ### 2. Additional API Endpoints 🌐
-**Priority: HIGH | Effort: MEDIUM**
+**Status: DONE (2026-03-19)**
 
 The Python b3_tracker exposes 36+ API endpoints. Dracma has 3 API endpoints. Add the missing ones:
 
@@ -108,7 +112,7 @@ The Python b3_tracker exposes 36+ API endpoints. Dracma has 3 API endpoints. Add
 ---
 
 ### 3. Rake Tasks (CLI Equivalents) 🔧
-**Priority: MEDIUM | Effort: LOW**
+**Status: DONE (2026-03-19)**
 
 The Python b3_tracker has 9 CLI modes (`--once`, `--signals`, `--news`, etc.). Add equivalent Rake tasks:
 
@@ -147,7 +151,7 @@ Add auto-generated API documentation.
 ---
 
 ### 5. CI/CD Pipeline 🔄
-**Priority: HIGH | Effort: LOW**
+**Status: DONE (2026-03-19)**
 
 Automate testing, linting, and security checks on every push.
 
@@ -222,7 +226,7 @@ Notify users when important events happen:
 ---
 
 ### 8. Data Quality & Health Monitor ✅
-**Priority: MEDIUM | Effort: MEDIUM**
+**Priority: MEDIUM | Effort: MEDIUM | Status: IN PROGRESS**
 
 Ensure data reliability before downstream analysis:
 - Detect stale quotes (last update older than N hours)
@@ -232,6 +236,8 @@ Ensure data reliability before downstream analysis:
 - Daily health report + alerts
 
 **Implementation notes:**
+- Implemented: `DataHealthChecker` service + `/api/health/data` endpoint with tests
+- Next: include health summary in exporter output + schedule recurring health job
 - Create `app/services/data_health_checker.rb` with validation rules
 - Add `/api/health/data` endpoint
 - Include health summary in generated reports
@@ -468,4 +474,4 @@ kamal deploy   # subsequent deploys
 ---
 
 *Migrated from [b3_tracker](../b3_tracker) ROADMAP.md and adapted for Ruby on Rails.*
-*Last updated: 2026-02-20*
+*Last updated: 2026-03-19*

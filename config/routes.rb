@@ -32,6 +32,7 @@ Rails.application.routes.draw do
     resources :quotes, only: [ :index, :show ]
     get "signals", to: "signals#index"
     get "scoring", to: "scoring#index"
+    get "health/data", to: "health#data"
     get "sectors", to: "sectors#index"
     get "movers", to: "movers#index"
     get "news", to: "news#index"
