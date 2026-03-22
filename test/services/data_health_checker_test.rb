@@ -79,6 +79,6 @@ class DataHealthCheckerTest < ActiveSupport::TestCase
     assert_equal "warning", report[:status]
     assert_equal 0, report.dig(:totals, :assets)
     assert_equal 0, report.dig(:totals, :assets_with_quotes)
-    assert_equal 0.0, report.dig(:totals, :coverage_percent)
+    assert_in_delta 0.0, report.dig(:totals, :coverage_percent)
   end
 end
