@@ -171,30 +171,33 @@ jobs:
 ---
 
 ### 6. Increase Test Coverage 🧪
-**Priority: HIGH | Effort: MEDIUM**
+**Priority: HIGH | Effort: MEDIUM | Status: IN PROGRESS**
 
 Current test suite covers models, some services, and controllers. Target: 80%+ coverage.
 
 **Missing test coverage:**
-- [ ] `QuoteFetcher` service (HTTP mocking with WebMock)
-- [ ] `NewsFetcher` service (RSS feed mocking)
-- [ ] `PolymarketClient` service (API mocking)
-- [ ] `YahooFinanceClient` service (rate limiting, retries, error handling)
-- [ ] `ExporterService` (CSV/JSON/report generation)
+- [x] `QuoteFetcher` service (HTTP mocking with WebMock)
+- [x] `NewsFetcher` service (RSS feed mocking)
+- [x] `PolymarketClient` service (API mocking)
+- [x] `YahooFinanceClient` service (rate limiting, retries, error handling)
+- [x] `ExporterService` (CSV/JSON/report generation)
 - [ ] Integration tests for dashboard with data
-- [ ] System tests with Capybara (login flow, portfolio CRUD, watchlist management)
+- [x] System tests with Capybara (login flow, portfolio CRUD, watchlist management)
 
-**Files to create:**
-- `test/services/quote_fetcher_test.rb` (expand)
-- `test/services/news_fetcher_test.rb` (new)
-- `test/services/polymarket_client_test.rb` (new)
-- `test/services/yahoo_finance_client_test.rb` (new)
-- `test/services/exporter_service_test.rb` (new)
-- `test/system/` (system tests)
+**System tests added (2026-03-28):**
+- `test/system/login_test.rb` — login/logout flow, auth redirects
+- `test/system/dashboard_test.rb` — dashboard market overview and signals
+- `test/system/watchlist_test.rb` — add/remove ticker, list display
+- `test/system/portfolio_test.rb` — portfolio CRUD, access control, performance view
 
-**Tools:**
-- Add `simplecov` gem for coverage reporting
-- Add coverage threshold enforcement
+**Note:** System tests require Chrome or Firefox + matching webdriver. They run in CI (GitHub Actions) where Chrome is pre-installed.
+
+**Files created:**
+- `test/system/login_test.rb`
+- `test/system/dashboard_test.rb`
+- `test/system/watchlist_test.rb`
+- `test/system/portfolio_test.rb`
+- `test/application_system_test_case.rb` (updated with `sign_in_as` helper)
 
 ---
 
