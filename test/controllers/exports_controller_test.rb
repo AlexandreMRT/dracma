@@ -62,6 +62,25 @@ class ExportsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to exports_path
   end
 
+  test "download rejects symlink export file" do
+    external_filename = "outside_export_#{SecureRandom.hex(6)}.txt"
+    external_path = File.expand_path("../#{external_filename}", ExporterService::EXPORTS_PATH)
+    symlink_name = "symlink_export_#{SecureRandom.hex(6)}.txt"
+    symlink_path = File.join(ExporterService::EXPORTS_PATH, symlink_name)
+
+    File.write(external_path, "outside")
+    File.symlink(external_path, symlink_path)
+
+    get exports_download_path(name: symlink_name)
+
+    assert_redirected_to exports_path
+  rescue NotImplementedError, Errno::EPERM
+    skip "symlinks are not supported in this environment"
+  ensure
+    FileUtils.rm_f(symlink_path)
+    FileUtils.rm_f(external_path)
+  end
+
   test "redirects to login when not authenticated" do
     reset!
     get exports_path

@@ -60,7 +60,14 @@ class ExportsController < ApplicationController
     exports_root = File.expand_path(ExporterService::EXPORTS_PATH)
     candidate = File.expand_path(File.join(exports_root, file_name))
     return nil unless candidate.start_with?("#{exports_root}/")
+    return nil unless File.exist?(candidate)
+    return nil if File.symlink?(candidate)
 
-    candidate
+    real_candidate = File.realpath(candidate)
+    return nil unless real_candidate.start_with?("#{exports_root}/")
+
+    real_candidate
+  rescue Errno::ENOENT, Errno::EACCES, Errno::EINVAL
+    nil
   end
 end
