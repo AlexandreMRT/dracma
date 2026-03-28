@@ -62,8 +62,7 @@ class PortfolioTest < ApplicationSystemTestCase
     fill_in "portfolio_name", with: portfolio_name
     click_on "Create"
 
-    # Navigate to the newly created portfolio and delete it
-    click_on portfolio_name
+    # Create redirects to the show page — click Edit directly from there
     click_on "Edit"
 
     accept_confirm do
