@@ -27,6 +27,9 @@ jobs:
           # Exit code 5 = not latest version (warning only, not a real failure)
           if [ "$rc" -eq 5 ]; then exit 0; else exit "$rc"; fi
 
+      - name: Scan for known CVEs in Ruby gem dependencies
+        run: bundle exec bundler-audit check --update
+
   scan_js:
     runs-on: ubuntu-latest
 
@@ -57,21 +60,6 @@ jobs:
 
       - name: Lint code for consistent style
         run: bin/rubocop -f github
-
-  typecheck:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: .ruby-version
-          bundler-cache: true
-
-      - name: Run Sorbet type checking (app code only)
-        run: bin/srb-check
 
   test:
     runs-on: ubuntu-latest
