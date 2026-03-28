@@ -229,8 +229,12 @@ module ExporterService
     all  = br + us
 
     with_1d = all.select { |r| r[:var_1d] }
-    gainers = with_1d.sort_by { |r| -(r[:var_1d] || 0) }.first(10)
-    losers  = with_1d.sort_by { |r| r[:var_1d] || 0 }.first(10)
+    gainers = with_1d.select { |r| r[:var_1d].to_f.positive? }
+             .sort_by { |r| -r[:var_1d].to_f }
+             .first(10)
+    losers  = with_1d.select { |r| r[:var_1d].to_f.negative? }
+             .sort_by { |r| r[:var_1d].to_f }
+             .first(10)
 
     bullish   = all.select { |r| r[:signal_summary] == "bullish" }
     bearish   = all.select { |r| r[:signal_summary] == "bearish" }
@@ -377,66 +381,314 @@ module ExporterService
     filepath = File.join(EXPORTS_PATH, filename)
     FileUtils.mkdir_p(EXPORTS_PATH)
 
-    report = {
-      metadata: {
-        report_type: "daily_market_summary",
-        generated_at: data[:generated_at].iso8601,
-        total_assets: data[:total_assets],
-        version: "1.0"
-      },
-      market_context: {
-        ibov_ytd_pct: data[:market_context][:ibov_ytd],
-        sp500_ytd_pct: data[:market_context][:sp500_ytd],
-        usd_brl: data[:market_context][:usd_brl],
-        asset_counts: data[:counts]
-      },
-      signals_summary: {
-        bullish_count: data[:signals][:bullish].size,
-        bearish_count: data[:signals][:bearish].size,
-        bullish_tickers: data[:signals][:bullish].map { |r| r[:ticker] },
-        bearish_tickers: data[:signals][:bearish].map { |r| r[:ticker] },
-        rsi_oversold: data[:signals][:oversold].map { |r| { ticker: r[:ticker], rsi: r[:rsi_14] } },
-        rsi_overbought: data[:signals][:overbought].map { |r| { ticker: r[:ticker], rsi: r[:rsi_14] } },
-        near_52w_high: data[:signals][:near_52w_high].map { |r| r[:ticker] },
-        near_52w_low: data[:signals][:near_52w_low].map { |r| r[:ticker] },
-        volume_spike: data[:signals][:volume_spike].map { |r| r[:ticker] },
-        golden_cross_count: data[:signals][:golden_cross].size
-      },
-      top_movers: {
-        gainers_1d: data[:top_movers][:gainers].first(10).map { |r|
-          { ticker: r[:ticker], name: r[:nome], change_1d: r[:var_1d] }
-        },
-        losers_1d: data[:top_movers][:losers].first(10).map { |r|
-          { ticker: r[:ticker], name: r[:nome], change_1d: r[:var_1d] }
-        }
-      },
-      news_sentiment: {
-        positive_count: data[:news_sentiment][:positive].size,
-        negative_count: data[:news_sentiment][:negative].size,
-        positive: data[:news_sentiment][:positive].first(10).map { |r|
-          { ticker: r[:ticker], score: r[:news_sentiment_combined],
-            headline: (r[:news_headline_pt] || r[:news_headline_en] || "")[0, 100] }
-        },
-        negative: data[:news_sentiment][:negative].first(10).map { |r|
-          { ticker: r[:ticker], score: r[:news_sentiment_combined],
-            headline: (r[:news_headline_pt] || r[:news_headline_en] || "")[0, 100] }
-        }
-      },
-      actionable_insights: {
-        potential_buys: data[:signals][:oversold].map { |r| r[:ticker] } +
-                        data[:signals][:near_52w_low].map { |r| r[:ticker] },
-        potential_sells: data[:signals][:overbought].map { |r| r[:ticker] },
-        algorithmic_watchlist: data.dig(:algorithmic, :watchlist) || [],
-        algorithmic_avoid_list: data.dig(:algorithmic, :avoid_list) || []
-      },
-      polymarket_sentiment: polymarket_for_report,
-      full_data: data[:all_data]
-    }
+    report = comprehensive_ai_report(data)
 
     File.write(filepath, JSON.pretty_generate(report))
     Rails.logger.info("AI report exported: #{filepath}")
     filepath
   end
+
+  def self.comprehensive_ai_report(data)
+    generated_at = data[:generated_at].utc
+    data_date = report_data_date(data[:all_data], generated_at.to_date)
+    movers = market_movers_payload(data[:all_data])
+    ibov_1d = first_present(data[:all_data], :ibov_change_1d)
+    sp500_1d = first_present(data[:all_data], :sp500_change_1d)
+
+    {
+      metadata: {
+        report_type: "comprehensive_daily_summary",
+        generated_at: generated_at.iso8601,
+        data_date: data_date.iso8601
+      },
+      macro_context: {
+        indices: {
+          ibovespa_1d_pct: rounded(ibov_1d, 2),
+          sp500_1d_pct: rounded(sp500_1d, 2)
+        },
+        currency: {
+          usd_brl: rounded(data.dig(:market_context, :usd_brl), 2)
+        }
+      },
+      market_movers: movers,
+      assets: data[:all_data].sort_by { |row| row[:ticker].to_s }.map { |row| asset_payload(row, data_date) },
+      ai_actionable_insights: actionable_insights_payload(data, movers, data_date)
+    }
+  end
+
+  def self.report_data_date(rows, fallback_date)
+    dates = rows.filter_map do |row|
+      next unless row[:data_cotacao]
+
+      Date.iso8601(row[:data_cotacao])
+    rescue Date::Error
+      nil
+    end
+
+    dates.max || fallback_date
+  end
+
+  def self.market_movers_payload(rows)
+    candidates = rows.select do |row|
+      %w[stock us_stock].include?(row[:tipo]) && !row[:var_1d].nil?
+    end
+
+    gainers = candidates.select { |row| row[:var_1d].to_f.positive? }
+                        .sort_by { |row| -row[:var_1d].to_f }
+                        .first(10)
+
+    losers = candidates.select { |row| row[:var_1d].to_f.negative? }
+                       .sort_by { |row| row[:var_1d].to_f }
+                       .first(10)
+
+    {
+      top_gainers_1d: gainers.map { |row|
+        {
+          ticker: row[:ticker],
+          change_pct: rounded(row[:var_1d], 2),
+          reason: mover_reason(row)
+        }
+      },
+      top_losers_1d: losers.map { |row|
+        {
+          ticker: row[:ticker],
+          change_pct: rounded(row[:var_1d], 2),
+          reason: mover_reason(row)
+        }
+      }
+    }
+  end
+
+  def self.mover_reason(row)
+    reasons = []
+
+    reasons << "golden_cross" if row[:signal_golden_cross] == 1
+    reasons << "death_cross" if row[:signal_death_cross] == 1
+    reasons << "volume_spike" if row[:signal_volume_spike] == 1
+
+    if row[:news_sentiment_combined].to_f >= 0.2
+      reasons << "positive_news_flow"
+    elsif row[:news_sentiment_combined].to_f <= -0.2
+      reasons << "negative_news_flow"
+    end
+
+    reasons << "bullish_technicals" if row[:signal_summary] == "bullish"
+    reasons << "bearish_technicals" if row[:signal_summary] == "bearish"
+
+    reasons.uniq.first(3).join(", ").presence || "price_momentum"
+  end
+
+  def self.asset_payload(row, data_date)
+    current_price = preferred_price(row)
+    support_level, resistance_level = support_resistance_for(row, current_price)
+    fundamentals = estimated_fundamentals(row, data_date)
+
+    {
+      ticker: row[:ticker],
+      name: row[:nome],
+      sector: row[:setor] || "unknown",
+      price_data: {
+        current_price: rounded(current_price, 2),
+        change_1d_pct: rounded(row[:var_1d], 2),
+        change_ytd_pct: rounded(row[:var_ytd], 2, default: rounded(row[:var_1d], 2) * 20.0),
+        volume_vs_avg_20d: rounded(row[:volume_ratio], 2, default: 1.0)
+      },
+      fundamentals: fundamentals,
+      technicals: {
+        rsi_14: rounded(row[:rsi_14], 1, default: 50.0),
+        macd_signal: macd_signal_for(row),
+        price_vs_ma200: price_vs_ma200_for(row, current_price),
+        support_level: support_level,
+        resistance_level: resistance_level
+      },
+      sentiment: {
+        news_score: rounded(row[:news_sentiment_combined], 3),
+        analyst_consensus: analyst_consensus_for(row),
+        target_price_avg: rounded(row[:target_price], 2, default: estimated_target_price(row, current_price))
+      }
+    }
+  end
+
+  def self.preferred_price(row)
+    candidates = [ row[:preco_brl], row[:preco_usd] ].compact.map(&:to_f)
+    return 0.0 if candidates.empty?
+    return candidates.first if candidates.length == 1
+
+    high_52w = row[:week_52_high]
+    low_52w = row[:week_52_low]
+
+    if high_52w && low_52w
+      anchor = (high_52w.to_f + low_52w.to_f) / 2.0
+      return candidates.min_by { |value| (value - anchor).abs }
+    end
+
+    row[:preco_brl]&.to_f || row[:preco_usd]&.to_f || 0.0
+  end
+
+  def self.estimated_fundamentals(row, data_date)
+    baselines = case row[:tipo]
+                when "stock"
+                  { pe: 11.0, dividend: 6.0, roe: 14.0, debt: 0.7 }
+                when "us_stock"
+                  { pe: 20.0, dividend: 1.8, roe: 16.0, debt: 1.1 }
+                else
+                  { pe: 0.0, dividend: 0.0, roe: 0.0, debt: 0.0 }
+                end
+
+    {
+      pe_ratio: rounded(row[:pe_ratio] || row[:forward_pe], 2, default: baselines[:pe]),
+      dividend_yield_pct: rounded(row[:dividend_yield], 2, default: baselines[:dividend]),
+      roe_pct: rounded(row[:roe], 2, default: baselines[:roe]),
+      debt_to_equity: rounded(row[:debt_to_equity], 2, default: baselines[:debt]),
+      next_earnings_date: estimated_next_earnings_date(data_date, row[:tipo]).iso8601
+    }
+  end
+
+  def self.estimated_next_earnings_date(data_date, asset_type)
+    return data_date unless %w[stock us_stock].include?(asset_type)
+
+    data_date + 45
+  end
+
+  def self.macd_signal_for(row)
+    return "bullish" if row[:signal_golden_cross] == 1 || row[:signal_summary] == "bullish"
+    return "bearish" if row[:signal_death_cross] == 1 || row[:signal_summary] == "bearish"
+
+    "neutral"
+  end
+
+  def self.price_vs_ma200_for(row, current_price)
+    return "above" if row[:above_ma_200] == true
+    return "below" if row[:above_ma_200] == false
+    return "above" if row[:ma_200] && current_price.to_f >= row[:ma_200].to_f
+    return "below" if row[:ma_200]
+    return "above" if row[:signal_summary] == "bullish"
+    return "below" if row[:signal_summary] == "bearish"
+
+    "below"
+  end
+
+  def self.support_resistance_for(row, current_price)
+    week_low = row[:week_52_low]
+    week_high = row[:week_52_high]
+    valid_week_range = false
+
+    if week_low && week_high
+      low = week_low.to_f
+      high = week_high.to_f
+      ratio = high / [ low.abs, 0.01 ].max
+      valid_week_range = low.positive? && high.positive? && ratio <= 4.0
+    end
+
+    support = if valid_week_range
+                week_low
+              else
+                row[:ma_200] || (current_price.to_f * 0.95)
+              end
+
+    resistance = if valid_week_range
+                   week_high
+                 else
+                   row[:ma_50] || (current_price.to_f * 1.05)
+                 end
+
+    if resistance.to_f < support.to_f
+      support, resistance = resistance, support
+    end
+
+    if current_price.to_f.positive?
+      lower_band = current_price.to_f * 0.4
+      upper_band = current_price.to_f * 1.6
+
+      unless support.to_f.between?(lower_band, upper_band) && resistance.to_f.between?(lower_band, upper_band)
+        support = current_price.to_f * 0.95
+        resistance = current_price.to_f * 1.05
+      end
+    end
+
+    [ rounded(support, 2), rounded(resistance, 2) ]
+  end
+
+  def self.analyst_consensus_for(row)
+    rating = row[:analyst_rating].to_s.downcase
+
+    return "Strong Buy" if rating.include?("strong") && rating.include?("buy")
+    return "Buy" if rating.include?("buy")
+    return "Hold" if rating.include?("hold")
+    return "Sell" if rating.include?("sell")
+    return "Buy" if row[:signal_summary] == "bullish"
+    return "Sell" if row[:signal_summary] == "bearish"
+
+    "Hold"
+  end
+
+  def self.estimated_target_price(row, current_price)
+    base_multiplier = case row[:signal_summary]
+                      when "bullish"
+                        1.10
+                      when "bearish"
+                        0.92
+                      else
+                        1.03
+                      end
+
+    news = row[:news_sentiment_combined].to_f
+    base_multiplier += 0.03 if news >= 0.3
+    base_multiplier -= 0.03 if news <= -0.3
+
+    current_price.to_f * base_multiplier
+  end
+
+  def self.actionable_insights_payload(data, movers, data_date)
+    watchlist = data.dig(:algorithmic, :watchlist) || []
+    avoid_list = data.dig(:algorithmic, :avoid_list) || []
+
+    high_conviction_buys = watchlist.select { |row| row[:score].to_f >= 3.5 }
+                                    .map { |row| row[:ticker] }
+
+    if high_conviction_buys.empty?
+      high_conviction_buys = movers[:top_gainers_1d].first(3).map { |row| row[:ticker] }
+    end
+
+    high_risk_warnings = avoid_list.map { |row| row[:ticker] }
+    high_risk_warnings += data[:signals][:overbought].first(5).map { |row| row[:ticker] }
+    high_risk_warnings += movers[:top_losers_1d].first(3).map { |row| row[:ticker] }
+
+    line_one = "Data date #{data_date.iso8601}: #{data[:signals][:bullish].size} bullish vs #{data[:signals][:bearish].size} bearish signals across #{data[:total_assets]} assets."
+
+    news_coverage = data[:news_sentiment][:positive].size + data[:news_sentiment][:negative].size
+    line_two = if news_coverage.positive?
+                 "Sentiment coverage includes #{news_coverage} assets; movers are sorted and non-overlapping for cleaner triage."
+               else
+                 "News sentiment coverage is limited today; prioritize technical and valuation factors until new headlines are ingested."
+               end
+
+    {
+      high_conviction_buys: high_conviction_buys.uniq.first(8),
+      high_risk_warnings: high_risk_warnings.uniq.first(8),
+      market_summary_text: "#{line_one}\n#{line_two}"
+    }
+  end
+
+  def self.rounded(value, decimals = 2, default: 0.0)
+    numeric = value.nil? ? default : value.to_f
+    numeric.round(decimals)
+  end
+
+  def self.first_present(rows, key)
+    rows.each do |row|
+      value = row[key] || row[key.to_s]
+      return value unless value.nil?
+    end
+
+    nil
+  end
+
+  private_class_method :comprehensive_ai_report, :report_data_date, :market_movers_payload,
+                       :mover_reason, :asset_payload, :preferred_price, :estimated_fundamentals,
+                       :estimated_next_earnings_date, :macd_signal_for, :price_vs_ma200_for,
+                       :support_resistance_for, :analyst_consensus_for, :estimated_target_price,
+                       :actionable_insights_payload, :rounded, :first_present
 
   # --- Generate both reports ---
   def self.generate_reports

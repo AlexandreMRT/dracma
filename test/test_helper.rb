@@ -1,4 +1,5 @@
 ENV["RAILS_ENV"] ||= "test"
+ENV["EXPORTS_PATH"] ||= File.expand_path("../tmp/test_exports", __dir__)
 
 require "simplecov"
 SimpleCov.start "rails" do

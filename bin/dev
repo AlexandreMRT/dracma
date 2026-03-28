@@ -5,7 +5,21 @@ if ! gem list foreman -i --silent; then
   gem install foreman
 fi
 
-# Default to port 3000 if not specified
+# If PORT is not provided by the shell, read local .env values.
+# This helps align dev server port with OAuth callback configuration.
+if [ -z "${PORT:-}" ] && [ -f ".env" ]; then
+  ENV_PORT="$(sed -n 's/^PORT=//p' .env | head -n 1)"
+  ENV_OAUTH_REDIRECT_URI="$(sed -n 's/^OAUTH_REDIRECT_URI=//p' .env | head -n 1)"
+
+  if [ -n "$ENV_PORT" ]; then
+    PORT="$ENV_PORT"
+  elif [ -n "$ENV_OAUTH_REDIRECT_URI" ]; then
+    OAUTH_PORT="$(printf "%s" "$ENV_OAUTH_REDIRECT_URI" | sed -nE 's#^[a-zA-Z]+://[^:/]+:([0-9]+)(/.*)?$#\1#p')"
+    PORT="${OAUTH_PORT:-3000}"
+  fi
+fi
+
+# Default to port 3000 if still unspecified
 export PORT="${PORT:-3000}"
 
 # Let the debug gem allow remote connections,

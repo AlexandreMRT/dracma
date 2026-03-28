@@ -7,6 +7,17 @@ class ExportsController < ApplicationController
                   .sort_by { |e| -e[:mtime].to_i }
   end
 
+  def download
+    file_name = params[:name].to_s
+    path = safe_export_path(file_name)
+
+    if path && File.file?(path)
+      send_file path, disposition: "attachment"
+    else
+      redirect_to exports_path, alert: "Export file not found"
+    end
+  end
+
   def csv
     path = ExporterService.export_csv(quote_date: parse_date)
     if path
@@ -40,5 +51,16 @@ class ExportsController < ApplicationController
     params[:date] ? Date.parse(params[:date]) : nil
   rescue Date::Error
     nil
+  end
+
+  def safe_export_path(file_name)
+    return nil if file_name.blank?
+    return nil unless file_name == File.basename(file_name)
+
+    exports_root = File.expand_path(ExporterService::EXPORTS_PATH)
+    candidate = File.expand_path(File.join(exports_root, file_name))
+    return nil unless candidate.start_with?("#{exports_root}/")
+
+    candidate
   end
 end
