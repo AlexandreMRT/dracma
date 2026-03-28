@@ -240,6 +240,7 @@ bundle install
 # Environment variables
 export GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 export GOOGLE_CLIENT_SECRET=your-client-secret
+export OAUTH_REDIRECT_URI=http://localhost:3000/auth/google_oauth2/callback
 export SECRET_KEY_BASE=$(bin/rails secret)
 
 # Database
@@ -257,6 +258,7 @@ The app will be available at `http://localhost:3000`.
 |----------|----------|-------------|
 | `GOOGLE_CLIENT_ID` | Yes | Google OAuth2 client ID |
 | `GOOGLE_CLIENT_SECRET` | Yes | Google OAuth2 client secret |
+| `OAUTH_REDIRECT_URI` | No | Full OAuth callback URL (must be absolute HTTP(S) and include callback path) |
 | `SECRET_KEY_BASE` | Yes (prod) | Rails secret key for session encryption |
 | `DATABASE_URL` | No | PostgreSQL connection URL (defaults to local) |
 | `RAILS_ENV` | No | Environment (`development`, `test`, `production`) |

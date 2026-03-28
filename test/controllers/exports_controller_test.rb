@@ -68,4 +68,11 @@ class ExportsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to login_path
   end
+
+  test "download redirects to login when not authenticated" do
+    reset!
+    get exports_download_path(name: @test_export_filename)
+
+    assert_redirected_to login_path
+  end
 end
