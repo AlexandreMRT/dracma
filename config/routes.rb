@@ -2,6 +2,7 @@ Rails.application.routes.draw do
   # Authentication
   get "login", to: "pages#login", as: :login
   get "/auth/google_oauth2/callback", to: "sessions#create"
+  get "/auth/callback", to: "sessions#create"
   get "/auth/failure", to: "sessions#failure"
   delete "logout", to: "sessions#destroy", as: :logout
 
@@ -25,6 +26,7 @@ Rails.application.routes.draw do
   get "exports", to: "exports#index"
   get "exports/csv", to: "exports#csv"
   get "exports/json", to: "exports#json"
+  get "exports/download", to: "exports#download"
   get "exports/report", to: "exports#report"
 
   # API namespace for Turbo/JSON endpoints

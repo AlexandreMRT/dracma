@@ -5,6 +5,14 @@ require "test_helper"
 class ExportsControllerTest < ActionDispatch::IntegrationTest
   setup do
     login_as users(:alice)
+    @test_export_filename = "test_export_download_#{SecureRandom.hex(8)}.txt"
+    @test_export_path = File.join(ExporterService::EXPORTS_PATH, @test_export_filename)
+    FileUtils.mkdir_p(ExporterService::EXPORTS_PATH)
+    File.write(@test_export_path, "sample export")
+  end
+
+  teardown do
+    FileUtils.rm_f(@test_export_path)
   end
 
   test "index lists export files" do
@@ -35,9 +43,54 @@ class ExportsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to exports_path
   end
 
+  test "download serves existing export file" do
+    get exports_download_path(name: @test_export_filename)
+
+    assert_response :success
+    assert_includes response.headers["Content-Disposition"], "attachment"
+  end
+
+  test "download redirects when file does not exist" do
+    get exports_download_path(name: "missing_export.txt")
+
+    assert_redirected_to exports_path
+  end
+
+  test "download rejects traversal filename" do
+    get exports_download_path(name: "../database.yml")
+
+    assert_redirected_to exports_path
+  end
+
+  test "download rejects symlink export file" do
+    external_filename = "outside_export_#{SecureRandom.hex(6)}.txt"
+    external_path = File.expand_path("../#{external_filename}", ExporterService::EXPORTS_PATH)
+    symlink_name = "symlink_export_#{SecureRandom.hex(6)}.txt"
+    symlink_path = File.join(ExporterService::EXPORTS_PATH, symlink_name)
+
+    File.write(external_path, "outside")
+    File.symlink(external_path, symlink_path)
+
+    get exports_download_path(name: symlink_name)
+
+    assert_redirected_to exports_path
+  rescue NotImplementedError, Errno::EPERM
+    skip "symlinks are not supported in this environment"
+  ensure
+    FileUtils.rm_f(symlink_path)
+    FileUtils.rm_f(external_path)
+  end
+
   test "redirects to login when not authenticated" do
     reset!
     get exports_path
+
+    assert_redirected_to login_path
+  end
+
+  test "download redirects to login when not authenticated" do
+    reset!
+    get exports_download_path(name: @test_export_filename)
 
     assert_redirected_to login_path
   end
