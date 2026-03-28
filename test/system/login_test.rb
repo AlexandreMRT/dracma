@@ -42,6 +42,8 @@ class LoginTest < ApplicationSystemTestCase
   test "after logout dashboard is inaccessible" do
     sign_in_as users(:alice)
     click_on "Logout"
+
+    assert_current_path login_path  # wait for Turbo to finish the redirect
     visit root_path
 
     assert_current_path login_path

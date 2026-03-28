@@ -25,7 +25,7 @@ class PortfolioTest < ApplicationSystemTestCase
     click_on "New Portfolio"
 
     assert_text "New Portfolio"
-    fill_in "Name", with: "Tech Stocks"
+    fill_in "portfolio_name", with: "Tech Stocks"
     click_on "Create"
 
     assert_text "Tech Stocks"
@@ -43,7 +43,7 @@ class PortfolioTest < ApplicationSystemTestCase
     click_on "Main Portfolio"
     click_on "Edit"
 
-    fill_in "Name", with: "Renamed Portfolio"
+    fill_in "portfolio_name", with: "Renamed Portfolio"
     click_on "Update"
 
     assert_text "Renamed Portfolio"
@@ -59,7 +59,7 @@ class PortfolioTest < ApplicationSystemTestCase
   test "deleting a portfolio removes it from the list" do
     portfolio_name = "Disposable Portfolio"
     click_on "New Portfolio"
-    fill_in "Name", with: portfolio_name
+    fill_in "portfolio_name", with: portfolio_name
     click_on "Create"
 
     # Navigate to the newly created portfolio and delete it
