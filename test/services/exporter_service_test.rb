@@ -63,44 +63,62 @@ class ExporterServiceTest < ActiveSupport::TestCase
 
     gainers = report[:top_movers][:gainers].map { |row| row[:ticker] }
     losers = report[:top_movers][:losers].map { |row| row[:ticker] }
+
     assert_empty(gainers & losers)
   end
 
-  test "export_ai_report emits comprehensive schema with sorted exclusive movers" do
+  test "export_ai_report emits comprehensive metadata and sections" do
+    with_ai_report_payload do |payload|
+      assert_equal "comprehensive_daily_summary", payload.dig("metadata", "report_type")
+      assert_predicate payload.dig("metadata", "generated_at"), :present?
+      assert_predicate payload.dig("metadata", "data_date"), :present?
+
+      assert payload.key?("macro_context")
+      assert payload.key?("market_movers")
+      assert payload.key?("assets")
+      assert payload.key?("ai_actionable_insights")
+    end
+  end
+
+  test "export_ai_report movers are sorted and mutually exclusive" do
+    with_ai_report_payload do |payload|
+      gainers = payload.dig("market_movers", "top_gainers_1d")
+      losers = payload.dig("market_movers", "top_losers_1d")
+
+      assert gainers.each_cons(2).all? { |a, b| a["change_pct"] >= b["change_pct"] }
+      assert losers.each_cons(2).all? { |a, b| a["change_pct"] <= b["change_pct"] }
+      assert gainers.all? { |row| row["change_pct"].to_f.positive? }
+      assert losers.all? { |row| row["change_pct"].to_f.negative? }
+
+      gainers_tickers = gainers.map { |row| row["ticker"] }
+      losers_tickers = losers.map { |row| row["ticker"] }
+
+      assert_empty(gainers_tickers & losers_tickers)
+    end
+  end
+
+  test "export_ai_report asset and insight sections include expected keys" do
+    with_ai_report_payload do |payload|
+      first_asset = payload.fetch("assets").first
+
+      assert first_asset.key?("price_data")
+      assert first_asset.key?("fundamentals")
+      assert first_asset.key?("technicals")
+      assert first_asset.key?("sentiment")
+
+      summary_text = payload.dig("ai_actionable_insights", "market_summary_text")
+
+      assert_includes summary_text, "\n"
+    end
+  end
+
+  private
+
+  def with_ai_report_payload
     filename = "ai_report_test_#{SecureRandom.hex(4)}.json"
     path = ExporterService.export_ai_report(filename: filename)
-
     payload = JSON.parse(File.read(path))
-
-    assert_equal "comprehensive_daily_summary", payload.dig("metadata", "report_type")
-    assert_predicate payload.dig("metadata", "generated_at"), :present?
-    assert_predicate payload.dig("metadata", "data_date"), :present?
-
-    assert payload.key?("macro_context")
-    assert payload.key?("market_movers")
-    assert payload.key?("assets")
-    assert payload.key?("ai_actionable_insights")
-
-    gainers = payload.dig("market_movers", "top_gainers_1d")
-    losers = payload.dig("market_movers", "top_losers_1d")
-
-    assert gainers.each_cons(2).all? { |a, b| a["change_pct"] >= b["change_pct"] }
-    assert losers.each_cons(2).all? { |a, b| a["change_pct"] <= b["change_pct"] }
-    assert gainers.all? { |row| row["change_pct"].to_f.positive? }
-    assert losers.all? { |row| row["change_pct"].to_f.negative? }
-
-    gainers_tickers = gainers.map { |row| row["ticker"] }
-    losers_tickers = losers.map { |row| row["ticker"] }
-    assert_empty(gainers_tickers & losers_tickers)
-
-    first_asset = payload.fetch("assets").first
-    assert first_asset.key?("price_data")
-    assert first_asset.key?("fundamentals")
-    assert first_asset.key?("technicals")
-    assert first_asset.key?("sentiment")
-
-    summary_text = payload.dig("ai_actionable_insights", "market_summary_text")
-    assert_includes summary_text, "\n"
+    yield payload
   ensure
     FileUtils.rm_f(path) if path
   end

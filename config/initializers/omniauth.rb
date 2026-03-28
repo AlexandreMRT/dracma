@@ -3,7 +3,7 @@ require "uri"
 oauth_options = {
   prompt: "select_account",
   image_aspect_ratio: "square",
-  image_size: 50,
+  image_size: 50
 }
 
 oauth_redirect_uri = ENV["OAUTH_REDIRECT_URI"].to_s.strip

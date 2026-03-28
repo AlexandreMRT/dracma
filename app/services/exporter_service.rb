@@ -527,13 +527,13 @@ module ExporterService
 
   def self.estimated_fundamentals(row, data_date)
     baselines = case row[:tipo]
-                when "stock"
+    when "stock"
                   { pe: 11.0, dividend: 6.0, roe: 14.0, debt: 0.7 }
-                when "us_stock"
+    when "us_stock"
                   { pe: 20.0, dividend: 1.8, roe: 16.0, debt: 1.1 }
-                else
+    else
                   { pe: 0.0, dividend: 0.0, roe: 0.0, debt: 0.0 }
-                end
+    end
 
     {
       pe_ratio: rounded(row[:pe_ratio] || row[:forward_pe], 2, default: baselines[:pe]),
@@ -582,15 +582,15 @@ module ExporterService
 
     support = if valid_week_range
                 week_low
-              else
+    else
                 row[:ma_200] || (current_price.to_f * 0.95)
-              end
+    end
 
     resistance = if valid_week_range
                    week_high
-                 else
+    else
                    row[:ma_50] || (current_price.to_f * 1.05)
-                 end
+    end
 
     if resistance.to_f < support.to_f
       support, resistance = resistance, support
@@ -624,13 +624,13 @@ module ExporterService
 
   def self.estimated_target_price(row, current_price)
     base_multiplier = case row[:signal_summary]
-                      when "bullish"
+    when "bullish"
                         1.10
-                      when "bearish"
+    when "bearish"
                         0.92
-                      else
+    else
                         1.03
-                      end
+    end
 
     news = row[:news_sentiment_combined].to_f
     base_multiplier += 0.03 if news >= 0.3
@@ -659,9 +659,9 @@ module ExporterService
     news_coverage = data[:news_sentiment][:positive].size + data[:news_sentiment][:negative].size
     line_two = if news_coverage.positive?
                  "Sentiment coverage includes #{news_coverage} assets; movers are sorted and non-overlapping for cleaner triage."
-               else
+    else
                  "News sentiment coverage is limited today; prioritize technical and valuation factors until new headlines are ingested."
-               end
+    end
 
     {
       high_conviction_buys: high_conviction_buys.uniq.first(8),

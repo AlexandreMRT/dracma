@@ -5,7 +5,7 @@ require "test_helper"
 class ExportsControllerTest < ActionDispatch::IntegrationTest
   setup do
     login_as users(:alice)
-    @test_export_filename = "test_export_download.txt"
+    @test_export_filename = "test_export_download_#{SecureRandom.hex(8)}.txt"
     @test_export_path = File.join(ExporterService::EXPORTS_PATH, @test_export_filename)
     FileUtils.mkdir_p(ExporterService::EXPORTS_PATH)
     File.write(@test_export_path, "sample export")
