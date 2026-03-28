@@ -21,15 +21,13 @@ All checks must pass before merging:
 - [ ] `bin/rails test` — all tests pass
 - [ ] `bundle exec rubocop` — 0 offenses
 - [ ] `bin/brakeman --no-pager` — 0 warnings
-- [ ] `bundle exec srb tc` — 0 errors
+- [ ] `bundle exec bundler-audit check --update` — 0 CVEs
 
 Or run all at once: `bin/check`
 
 ## Additional Checklist
 
-- [ ] Service files have `# typed: true` and Sorbet signatures on all methods
 - [ ] Controllers are thin — business logic is in services
 - [ ] Tests added for new functionality (both happy path and edge cases)
 - [ ] `.github/copilot-instructions.md` updated if patterns/conventions changed
 - [ ] Migration created if schema changes are needed
-- [ ] `bin/tapioca dsl` run if new ActiveRecord models added

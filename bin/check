@@ -6,11 +6,11 @@ set -e
 #   1. Tests (Minitest)
 #   2. Linting (RuboCop)
 #   3. Security (Brakeman)
-#   4. Type checking (Sorbet)
+#   4. Gem CVE audit (bundler-audit)
 #
 # Usage:
 #   bin/check          # Run all checks
-#   bin/check --quick  # Skip tests (rubocop + brakeman + sorbet only)
+#   bin/check --quick  # Skip tests (rubocop + brakeman + bundler-audit only)
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -35,8 +35,8 @@ set +e; bin/brakeman --no-pager; brakeman_exit=$?; set -e
 # Exit code 5 = outdated version note only, no security warnings — treat as pass
 if [ $brakeman_exit -eq 0 ] || [ $brakeman_exit -eq 5 ]; then pass "Brakeman"; else fail "Brakeman"; fi
 
-echo -e "${BOLD}[4/4] Running Sorbet type check...${RESET}"
-bin/srb-check && pass "Sorbet" || fail "Sorbet"
+echo -e "${BOLD}[4/4] Running bundler-audit (gem CVE check)...${RESET}"
+bundle exec bundler-audit check --update && pass "Bundler Audit" || fail "Bundler Audit"
 
 echo ""
 echo -e "${GREEN}${BOLD}All checks passed! Safe to commit.${RESET}"

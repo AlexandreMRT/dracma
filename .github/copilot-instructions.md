@@ -131,8 +131,8 @@ end
 
 Run all checks with a single command:
 ```bash
-bin/check            # Runs all 4 checks (test + rubocop + brakeman + sorbet)
-bin/check --quick    # Skip tests (rubocop + brakeman + sorbet only)
+bin/check            # Runs all 4 checks (test + rubocop + brakeman + bundler-audit)
+bin/check --quick    # Skip tests (rubocop + brakeman + bundler-audit only)
 ```
 
 Or individually:
@@ -144,7 +144,7 @@ bin/brakeman --no-pager       # Security (0 warnings)
 
 **Automated enforcement:**
 - **Lefthook pre-commit hook** — runs RuboCop on staged files automatically
-- **CI pipeline** — 5 jobs: `scan_ruby` (Brakeman), `scan_js` (importmap audit), `lint` (RuboCop), `typecheck` (Sorbet), `test` (Minitest + system tests). This is the real gate — PRs cannot merge unless CI is green.
+- **CI pipeline** — 4 jobs: `scan_ruby` (Brakeman + bundler-audit CVE check), `scan_js` (importmap audit), `lint` (RuboCop), `test` (Minitest + system tests). This is the real gate — PRs cannot merge unless CI is green.
 - Install hooks after fresh clone: `bundle exec lefthook install` (also runs via `bin/setup`)
 
 ---
@@ -365,7 +365,7 @@ end
 | `test/test_helper.rb` | Test setup, `login_as`, WebMock, SimpleCov, parallel config |
 | `db/schema.rb` | Full database schema (80+ Quote columns) |
 | `lefthook.yml` | Git hook configuration (pre-commit, pre-push) |
-| `bin/check` | Run all 4 validation checks in one command |
+| `bin/check` | Run all 4 validation checks (test, rubocop, brakeman, bundler-audit) |
 | `exports/` | Generated reports (CSV, JSON, MD, AI JSON) |
-| `.github/workflows/ci.yml` | CI pipeline (5 jobs: scan, lint, typecheck, test) |
+| `.github/workflows/ci.yml` | CI pipeline (4 jobs: scan_ruby, scan_js, lint, test) |
 | `config/initializers/rack_attack.rb` | Rate limiting rules |
