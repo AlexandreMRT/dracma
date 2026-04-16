@@ -48,25 +48,27 @@ class PortfolioServiceTest < ActiveSupport::TestCase
       transaction_type: "buy",
       quantity: 50,
       price_brl: 60.0,
+      broker: "BTG Pactual",
     )
 
     assert_predicate txn, :persisted?
-    pos = PortfolioService.find_position(new_portfolio, "VALE3.SA")
+    pos = PortfolioService.find_position(new_portfolio, "VALE3.SA", broker: "BTG Pactual")
 
     assert_not_nil pos
     assert_in_delta(50.0, pos.quantity)
     assert_in_delta(60.0, pos.avg_price_brl)
+    assert_equal "BTG Pactual", pos.broker
   end
 
   test "sell reduces position" do
     new_portfolio = PortfolioService.create_portfolio(@alice, name: "Sell Test")
 
     PortfolioService.add_transaction(new_portfolio, ticker: "TEST", transaction_type: "buy",
-      quantity: 100, price_brl: 10.0)
+      quantity: 100, price_brl: 10.0, broker: "Inter")
     PortfolioService.add_transaction(new_portfolio, ticker: "TEST", transaction_type: "sell",
-      quantity: 40, price_brl: 12.0)
+      quantity: 40, price_brl: 12.0, broker: "Inter")
 
-    pos = PortfolioService.find_position(new_portfolio, "TEST")
+    pos = PortfolioService.find_position(new_portfolio, "TEST", broker: "Inter")
 
     assert_in_delta(60.0, pos.quantity)
   end
@@ -75,13 +77,49 @@ class PortfolioServiceTest < ActiveSupport::TestCase
     new_portfolio = PortfolioService.create_portfolio(@alice, name: "Full Sell")
 
     PortfolioService.add_transaction(new_portfolio, ticker: "TEST", transaction_type: "buy",
-      quantity: 50, price_brl: 10.0)
+      quantity: 50, price_brl: 10.0, broker: "Inter")
     PortfolioService.add_transaction(new_portfolio, ticker: "TEST", transaction_type: "sell",
-      quantity: 50, price_brl: 12.0)
+      quantity: 50, price_brl: 12.0, broker: "Inter")
 
-    pos = PortfolioService.find_position(new_portfolio, "TEST")
+    pos = PortfolioService.find_position(new_portfolio, "TEST", broker: "Inter")
 
     assert_nil pos
+  end
+
+  test "same ticker different brokers creates separate positions" do
+    new_portfolio = PortfolioService.create_portfolio(@alice, name: "Multi Broker")
+
+    PortfolioService.add_transaction(new_portfolio, ticker: "PETR4.SA", transaction_type: "buy",
+      quantity: 100, price_brl: 35.0, broker: "BTG Pactual")
+    PortfolioService.add_transaction(new_portfolio, ticker: "PETR4.SA", transaction_type: "buy",
+      quantity: 50, price_brl: 36.0, broker: "Inter")
+
+    btg_pos = PortfolioService.find_position(new_portfolio, "PETR4.SA", broker: "BTG Pactual")
+    inter_pos = PortfolioService.find_position(new_portfolio, "PETR4.SA", broker: "Inter")
+
+    assert_not_nil btg_pos
+    assert_not_nil inter_pos
+    assert_in_delta(100.0, btg_pos.quantity)
+    assert_in_delta(50.0, inter_pos.quantity)
+    assert_equal 2, new_portfolio.positions.where(ticker: "PETR4.SA").count
+  end
+
+  test "delete_transaction recalculates position for correct broker" do
+    new_portfolio = PortfolioService.create_portfolio(@alice, name: "Delete Test")
+
+    PortfolioService.add_transaction(new_portfolio, ticker: "TEST", transaction_type: "buy",
+      quantity: 100, price_brl: 10.0, broker: "BTG Pactual")
+    txn2 = PortfolioService.add_transaction(new_portfolio, ticker: "TEST", transaction_type: "buy",
+      quantity: 50, price_brl: 10.0, broker: "Inter")
+
+    PortfolioService.delete_transaction(new_portfolio, txn2.id)
+
+    btg_pos = PortfolioService.find_position(new_portfolio, "TEST", broker: "BTG Pactual")
+    inter_pos = PortfolioService.find_position(new_portfolio, "TEST", broker: "Inter")
+
+    assert_not_nil btg_pos
+    assert_in_delta(100.0, btg_pos.quantity)
+    assert_nil inter_pos
   end
 
   test "portfolio_performance returns hash" do

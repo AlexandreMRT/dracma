@@ -22,6 +22,7 @@ module Api
       {
         id: position.id,
         ticker: position.ticker,
+        broker: position.broker,
         quantity: position.quantity,
         avg_price_brl: position.avg_price_brl,
         notes: position.notes,

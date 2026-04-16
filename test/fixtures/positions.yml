@@ -3,9 +3,11 @@ alice_petr4:
   ticker: PETR4.SA
   quantity: 100.0
   avg_price_brl: 35.50
+  broker: BTG Pactual
 
 bob_aapl:
   portfolio: bob_default
   ticker: AAPL
   quantity: 10.0
   avg_price_brl: 850.00
+  broker: Inter

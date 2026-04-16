@@ -8,6 +8,7 @@
     <div class="bg-gray-800 rounded-lg p-6">
       <h2 class="text-lg font-semibold text-gray-400 mb-4">Position</h2>
       <dl class="space-y-2">
+        <div class="flex justify-between"><dt class="text-gray-400">Broker</dt><dd class="text-white"><%= @position.broker %></dd></div>
         <div class="flex justify-between"><dt class="text-gray-400">Quantity</dt><dd class="text-white"><%= number_with_delimiter(@position.quantity) %></dd></div>
         <div class="flex justify-between"><dt class="text-gray-400">Avg Price</dt><dd class="text-white">R$ <%= number_with_precision(@position.avg_price_brl, precision: 2) %></dd></div>
         <div class="flex justify-between"><dt class="text-gray-400">Total Invested</dt><dd class="text-white">R$ <%= number_with_precision(@position.quantity * @position.avg_price_brl, precision: 2) %></dd></div>

@@ -17,6 +17,7 @@ module Api
 
       assert_equal 1, body["total"]
       assert_equal "PETR4.SA", body.dig("transactions", 0, "ticker")
+      assert_equal "BTG Pactual", body.dig("transactions", 0, "broker")
     end
 
     test "create adds a transaction" do
@@ -26,7 +27,8 @@ module Api
           transaction_type: "buy",
           quantity: "50",
           price_brl: "60.00",
-          fees_brl: "0.0"
+          fees_brl: "0.0",
+          broker: "Inter"
         }, as: :json
       end
 
@@ -34,6 +36,7 @@ module Api
       body = JSON.parse(response.body)
 
       assert_equal "VALE3.SA", body.dig("transaction", "ticker")
+      assert_equal "Inter", body.dig("transaction", "broker")
     end
 
     test "destroy removes a transaction" do

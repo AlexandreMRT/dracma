@@ -3,7 +3,10 @@ class Transaction < ApplicationRecord
 
   enum :transaction_type, { buy: 1, sell: 2, dividend: 3, split: 4, merge: 5 }, prefix: true
 
+  normalizes :broker, with: ->(broker) { broker.to_s.strip }
+
   validates :ticker, presence: true
+  validates :broker, presence: true
   validates :transaction_type, presence: true
   validates :quantity, presence: true, numericality: { greater_than: 0 }
   validates :price_brl, presence: true, numericality: { greater_than_or_equal_to: 0 }

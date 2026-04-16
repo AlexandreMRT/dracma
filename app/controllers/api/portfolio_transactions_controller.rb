@@ -17,6 +17,7 @@ module Api
         quantity: transaction_params[:quantity].to_f,
         price_brl: transaction_params[:price_brl].to_f,
         fees_brl: transaction_params[:fees_brl].presence&.to_f || 0.0,
+        broker: transaction_params[:broker].to_s,
         transaction_date: transaction_params[:transaction_date].presence,
       )
       render_json({ transaction: transaction_payload(transaction) }, status: :created)
@@ -46,6 +47,7 @@ module Api
       {
         id: transaction.id,
         ticker: transaction.ticker,
+        broker: transaction.broker,
         transaction_type: transaction.transaction_type,
         quantity: transaction.quantity,
         price_brl: transaction.price_brl,
@@ -59,7 +61,7 @@ module Api
     end
 
     def transaction_params
-      params.fetch(:transaction, params).permit(:ticker, :transaction_type, :quantity, :price_brl, :fees_brl, :transaction_date)
+      params.fetch(:transaction, params).permit(:ticker, :transaction_type, :quantity, :price_brl, :fees_brl, :broker, :transaction_date)
     end
   end
 end

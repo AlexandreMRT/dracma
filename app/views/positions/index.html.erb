@@ -9,6 +9,7 @@
       <thead class="bg-gray-700 text-gray-400 uppercase text-xs">
         <tr>
           <th class="px-4 py-3 text-left">Ticker</th>
+          <th class="px-4 py-3 text-left">Broker</th>
           <th class="px-4 py-3 text-right">Quantity</th>
           <th class="px-4 py-3 text-right">Avg Price</th>
           <th class="px-4 py-3 text-right">Total Invested</th>
@@ -19,6 +20,7 @@
         <% @positions.each do |pos| %>
           <tr class="hover:bg-gray-750">
             <td class="px-4 py-3 font-medium text-white"><%= pos.ticker %></td>
+            <td class="px-4 py-3 text-gray-300"><%= pos.broker %></td>
             <td class="px-4 py-3 text-right"><%= number_with_delimiter(pos.quantity) %></td>
             <td class="px-4 py-3 text-right">R$ <%= number_with_precision(pos.avg_price_brl, precision: 2) %></td>
             <td class="px-4 py-3 text-right">R$ <%= number_with_precision(pos.quantity * pos.avg_price_brl, precision: 2) %></td>
@@ -28,7 +30,7 @@
           </tr>
         <% end %>
         <% if @positions.empty? %>
-          <tr><td colspan="5" class="px-4 py-8 text-center text-gray-500">No positions yet</td></tr>
+          <tr><td colspan="6" class="px-4 py-8 text-center text-gray-500">No positions yet</td></tr>
         <% end %>
       </tbody>
     </table>

@@ -17,6 +17,7 @@ module Api
 
       assert_equal 1, body["total"]
       assert_equal "PETR4.SA", body.dig("positions", 0, "ticker")
+      assert_equal "BTG Pactual", body.dig("positions", 0, "broker")
       assert body.dig("positions", 0, "performance")
     end
 

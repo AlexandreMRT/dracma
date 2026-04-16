@@ -22,7 +22,8 @@ class TransactionsControllerTest < ActionDispatch::IntegrationTest
           transaction_type: "buy",
           quantity: "50",
           price_brl: "60.00",
-          fees_brl: "0.00"
+          fees_brl: "0.00",
+          broker: "BTG Pactual"
         }
       }
     end
