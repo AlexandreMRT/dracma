@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_04_16_003117) do
+ActiveRecord::Schema[8.1].define(version: 2026_04_16_022949) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -159,6 +159,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_04_16_003117) do
     t.datetime "transaction_date", null: false
     t.integer "transaction_type", null: false
     t.datetime "updated_at", null: false
+    t.index ["portfolio_id", "ticker", "broker", "transaction_date"], name: "index_transactions_on_portfolio_ticker_broker_date"
     t.index ["portfolio_id"], name: "index_transactions_on_portfolio_id"
   end
 

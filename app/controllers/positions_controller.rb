@@ -8,8 +8,7 @@ class PositionsController < ApplicationController
   end
 
   def show
-    @position = @portfolio.positions.find_by(id: params[:id]) ||
-                @portfolio.positions.find_by(ticker: params[:id].upcase)
+    @position = @portfolio.positions.find_by(id: params[:id])
     unless @position
       redirect_to portfolio_positions_path(@portfolio), alert: "Position not found"
       return
