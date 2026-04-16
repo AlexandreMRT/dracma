@@ -15,6 +15,7 @@ class TransactionsController < ApplicationController
       quantity: params[:transaction][:quantity].to_f,
       price_brl: params[:transaction][:price_brl].to_f,
       fees_brl: params[:transaction][:fees_brl].to_f,
+      broker: params[:transaction][:broker],
       transaction_date: params[:transaction][:transaction_date],
     )
     redirect_to portfolio_transactions_path(@portfolio), notice: "Transaction recorded"

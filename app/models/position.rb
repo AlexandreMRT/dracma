@@ -1,7 +1,8 @@
 class Position < ApplicationRecord
   belongs_to :portfolio
 
-  validates :ticker, presence: true, uniqueness: { scope: :portfolio_id }
+  validates :ticker, presence: true, uniqueness: { scope: [ :portfolio_id, :broker ] }
+  validates :broker, presence: true
   validates :quantity, numericality: { greater_than_or_equal_to: 0 }
   validates :avg_price_brl, numericality: { greater_than_or_equal_to: 0 }
 end

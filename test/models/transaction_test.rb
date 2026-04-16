@@ -14,4 +14,11 @@ class TransactionTest < ActiveSupport::TestCase
 
     assert_predicate txn, :transaction_type_buy?
   end
+
+  test "validates broker presence" do
+    txn = transactions(:alice_buy_petr4)
+    txn.broker = ""
+
+    assert_not txn.valid?
+  end
 end

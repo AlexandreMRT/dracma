@@ -15,7 +15,7 @@ class PositionsController < ApplicationController
       return
     end
     @performance = PortfolioService.position_performance(@position)
-    @transactions = PortfolioService.ticker_transactions(@portfolio, @position.ticker)
+    @transactions = PortfolioService.ticker_transactions(@portfolio, @position.ticker, broker: @position.broker)
   end
 
   private

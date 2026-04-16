@@ -6,6 +6,7 @@ alice_buy_petr4:
   price_brl: 35.50
   total_brl: 3550.00
   fees_brl: 0.0
+  broker: BTG Pactual
   transaction_date: 2026-01-15
 
 bob_buy_aapl:
@@ -16,4 +17,5 @@ bob_buy_aapl:
   price_brl: 850.00
   total_brl: 8500.00
   fees_brl: 0.0
+  broker: Inter
   transaction_date: 2026-01-20

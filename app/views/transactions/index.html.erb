@@ -9,7 +9,7 @@
   <%# Add transaction form %>
   <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
     <h2 class="text-lg font-semibold mb-3">New Transaction</h2>
-    <%= form_with url: portfolio_transactions_path(@portfolio), method: :post, class: "grid grid-cols-2 md:grid-cols-6 gap-3 items-end" do |f| %>
+    <%= form_with url: portfolio_transactions_path(@portfolio), method: :post, class: "grid grid-cols-2 md:grid-cols-7 gap-3 items-end" do |f| %>
       <div>
         <label class="block text-xs text-gray-400 mb-1">Ticker</label>
         <%= f.text_field "transaction[ticker]", class: "w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm uppercase", required: true %>
@@ -31,6 +31,15 @@
         <%= f.number_field "transaction[fees_brl]", step: "0.01", value: "0.00", class: "w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm" %>
       </div>
       <div>
+        <label class="block text-xs text-gray-400 mb-1">Broker</label>
+        <%= f.text_field "transaction[broker]", list: "broker-options", class: "w-full bg-gray-700 border border-gray-600 text-white rounded px-2 py-1 text-sm", required: true %>
+        <datalist id="broker-options">
+          <% BrokerCatalog.names.each do |name| %>
+            <option value="<%= name %>">
+          <% end %>
+        </datalist>
+      </div>
+      <div>
         <%= f.submit "Add", class: "w-full bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-sm cursor-pointer" %>
       </div>
     <% end %>
@@ -44,6 +53,7 @@
           <tr class="text-gray-400 text-left">
             <th class="px-4 py-2">Date</th>
             <th class="px-4 py-2">Ticker</th>
+            <th class="px-4 py-2">Broker</th>
             <th class="px-4 py-2">Type</th>
             <th class="px-4 py-2 text-right">Qty</th>
             <th class="px-4 py-2 text-right">Price</th>
@@ -57,6 +67,7 @@
             <tr class="border-t border-gray-700">
               <td class="px-4 py-2 text-gray-300"><%= txn.transaction_date.strftime("%Y-%m-%d") %></td>
               <td class="px-4 py-2 font-mono text-emerald-400"><%= txn.ticker %></td>
+              <td class="px-4 py-2 text-gray-300"><%= txn.broker %></td>
               <td class="px-4 py-2">
                 <span class="px-2 py-0.5 rounded text-xs <%= txn.transaction_type == 'buy' ? 'bg-emerald-900/50 text-emerald-300' : (txn.transaction_type == 'sell' ? 'bg-red-900/50 text-red-300' : 'bg-blue-900/50 text-blue-300') %>">
                   <%= txn.transaction_type.capitalize %>

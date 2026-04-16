@@ -39,8 +39,12 @@ module PortfolioService
     portfolio.positions.order(:ticker)
   end
 
-  def self.find_position(portfolio, ticker)
-    portfolio.positions.find_by(ticker: ticker.upcase)
+  def self.find_position(portfolio, ticker, broker: nil)
+    if broker
+      portfolio.positions.find_by(ticker: ticker.upcase, broker: broker)
+    else
+      portfolio.positions.find_by(ticker: ticker.upcase)
+    end
   end
 
   # === Transactions ===
@@ -49,12 +53,14 @@ module PortfolioService
     portfolio.transactions.order(transaction_date: :desc).limit(limit)
   end
 
-  def self.ticker_transactions(portfolio, ticker)
-    portfolio.transactions.where(ticker: ticker.upcase).order(transaction_date: :desc)
+  def self.ticker_transactions(portfolio, ticker, broker: nil)
+    scope = portfolio.transactions.where(ticker: ticker.upcase)
+    scope = scope.where(broker: broker) if broker
+    scope.order(transaction_date: :desc)
   end
 
   def self.add_transaction(portfolio, ticker:, transaction_type:, quantity:, price_brl:,
-                           fees_brl: 0.0, transaction_date: nil, notes: nil)
+                           broker:, fees_brl: 0.0, transaction_date: nil, notes: nil)
     transaction_date ||= Time.current
     total_brl = (quantity * price_brl) + fees_brl
 
@@ -65,6 +71,7 @@ module PortfolioService
       price_brl: price_brl,
       total_brl: total_brl,
       fees_brl: fees_brl,
+      broker: broker,
       transaction_date: transaction_date,
     )
 
@@ -77,15 +84,16 @@ module PortfolioService
     return false unless txn
 
     ticker = txn.ticker
+    broker = txn.broker
     txn.destroy!
-    recalculate_position(portfolio, ticker)
+    recalculate_position(portfolio, ticker, broker: broker)
     true
   end
 
   # === Position recalc ===
 
   def self.update_position_from_transaction(portfolio, ticker, txn)
-    pos = find_position(portfolio, ticker)
+    pos = find_position(portfolio, ticker, broker: txn.broker)
 
     case txn.transaction_type
     when "buy"
@@ -101,6 +109,7 @@ module PortfolioService
           ticker: ticker.upcase,
           quantity: txn.quantity,
           avg_price_brl: txn.price_brl,
+          broker: txn.broker,
         )
       end
     when "sell"
@@ -117,13 +126,22 @@ module PortfolioService
     end
   end
 
-  def self.recalculate_position(portfolio, ticker)
-    pos = find_position(portfolio, ticker)
-    pos&.destroy!
+  def self.recalculate_position(portfolio, ticker, broker: nil)
+    if broker
+      pos = find_position(portfolio, ticker, broker: broker)
+      pos&.destroy!
 
-    portfolio.transactions.where(ticker: ticker.upcase)
-             .order(:transaction_date).each do |txn|
-      update_position_from_transaction(portfolio, ticker, txn)
+      portfolio.transactions.where(ticker: ticker.upcase, broker: broker)
+               .order(:transaction_date).each do |txn|
+        update_position_from_transaction(portfolio, ticker, txn)
+      end
+    else
+      portfolio.positions.where(ticker: ticker.upcase).destroy_all
+
+      portfolio.transactions.where(ticker: ticker.upcase)
+               .order(:transaction_date).each do |txn|
+        update_position_from_transaction(portfolio, ticker, txn)
+      end
     end
   end
 
@@ -144,6 +162,7 @@ module PortfolioService
 
     {
       ticker: position.ticker,
+      broker: position.broker,
       quantity: position.quantity,
       avg_price: position.avg_price_brl,
       current_price: current_price,
