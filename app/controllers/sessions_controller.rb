@@ -3,6 +3,12 @@ class SessionsController < ApplicationController
 
   def create
     auth = request.env["omniauth.auth"]
+
+    unless auth
+      redirect_to login_path, alert: "Authentication payload missing. Please try again."
+      return
+    end
+
     user = User.from_omniauth(auth)
 
     if user.save

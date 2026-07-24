@@ -18,6 +18,7 @@
             <th class="px-4 py-2">File</th>
             <th class="px-4 py-2 text-right">Size</th>
             <th class="px-4 py-2 text-right">Modified</th>
+            <th class="px-4 py-2 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -26,6 +27,9 @@
               <td class="px-4 py-2 font-mono text-emerald-400"><%= e[:name] %></td>
               <td class="px-4 py-2 text-right text-gray-400"><%= number_to_human_size(e[:size]) %></td>
               <td class="px-4 py-2 text-right text-gray-400"><%= e[:mtime].strftime("%Y-%m-%d %H:%M") %></td>
+              <td class="px-4 py-2 text-right">
+                <%= link_to "Download", exports_download_path(name: e[:name]), class: "text-emerald-400 hover:text-emerald-300 text-sm" %>
+              </td>
             </tr>
           <% end %>
         </tbody>
