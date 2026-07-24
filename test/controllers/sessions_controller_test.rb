@@ -14,6 +14,12 @@ class SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_predicate session[:user_id], :present?
   end
 
+  test "generic callback without payload redirects to login" do
+    get "/auth/callback"
+
+    assert_redirected_to login_path
+  end
+
   test "destroy clears session" do
     login_as users(:alice)
     delete logout_path
