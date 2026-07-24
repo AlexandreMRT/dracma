@@ -44,6 +44,22 @@ class ExporterServiceTest < ActiveSupport::TestCase
     assert_empty snapshot[:currency]
   end
 
+  test "format_row exposes Graham valuation fields" do
+    row = ExporterService.format_row(quotes(:petr4_today))
+
+    assert_in_delta 39.24, row[:graham_number], 0.01
+    assert_in_delta 18.9, row[:graham_multiple], 0.01
+    assert_in_delta 1.89, row[:margin_of_safety_percent], 0.01
+  end
+
+  test "format_row returns nil Graham fields when not computed" do
+    row = ExporterService.format_row(quotes(:aapl_today))
+
+    assert_nil row[:graham_number]
+    assert_nil row[:graham_multiple]
+    assert_nil row[:margin_of_safety_percent]
+  end
+
   test "dashboard_snapshot derives movers signals and watchlist" do
     snapshot = ExporterService.dashboard_snapshot
 
@@ -112,6 +128,7 @@ class ExporterServiceTest < ActiveSupport::TestCase
       assert first_asset.key?("fundamentals")
       assert first_asset.key?("technicals")
       assert first_asset.key?("sentiment")
+      assert first_asset.dig("fundamentals", "graham_valuation").key?("graham_number")
 
       summary_text = payload.dig("ai_actionable_insights", "market_summary_text")
 

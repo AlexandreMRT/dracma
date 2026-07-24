@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_02_20_000717) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_24_185718) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -141,6 +141,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_02_20_000717) do
     t.datetime "fetched_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.float "graham_number"
+    t.float "graham_multiple"
+    t.float "margin_of_safety_percent"
     t.index ["asset_id", "quote_date"], name: "index_quotes_on_asset_id_and_quote_date", unique: true
     t.index ["asset_id"], name: "index_quotes_on_asset_id"
   end

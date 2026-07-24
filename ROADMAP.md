@@ -45,6 +45,7 @@
 - [x] Data health endpoint: `/api/health/data`
 - [x] Data health summary embedded in exporter reports (Markdown/AI JSON) + scheduled `HealthCheckJob`
 - [x] Weekly market summary email (Action Mailer, Fridays 18:30)
+- [x] Benjamin Graham valuation multiples (Graham Number, Graham Multiple, Margin of Safety) computed per quote and exposed in exports/API
 - [x] Parallel quote fetching with configurable worker pool (`QUOTE_FETCHER_CONCURRENCY`)
 - [x] Rake task suite: `quotes:*` and `export:*`
 
@@ -299,6 +300,33 @@ Free forever VM with 4 OCPUs, 24GB RAM (ARM Ampere):
 
 ---
 
+### 11. Graham Valuation Multiples 📐
+**Status: DONE (2026-07-24)**
+
+Benjamin Graham value-investing multiples, computed per quote:
+- Graham Number: √(22.5 × EPS × Book Value per Share)
+- Graham Multiple: P/E × P/B (Graham's rule of thumb threshold is 22.5)
+- Margin of Safety: (Graham Number − Price) / Graham Number × 100
+
+**Implementation notes:**
+- New `GrahamValuation` module (pure calculation, no DB access) — returns `nil` for any
+  metric when the required inputs (EPS, P/B, P/E, price) are missing or non-positive,
+  rather than fabricating a value
+- Wired into `QuoteFetcher#fetch_single`, persisted via 3 new `Quote` columns
+- Exposed in `ExporterService.format_row` and in the AI JSON report under
+  `assets[].fundamentals.graham_valuation`
+- Automatically available through `/api/quotes` (backed by `ApiDataService` → `ExporterService`)
+
+**Files created/modified:**
+- `app/services/graham_valuation.rb` (new)
+- `app/services/quote_fetcher.rb` (calculate + persist)
+- `app/services/exporter_service.rb` (format_row + AI report fundamentals)
+- `db/migrate/20260724185718_add_graham_fields_to_quotes.rb` (new columns)
+- `test/services/graham_valuation_test.rb` (new)
+
+
+---
+
 ## Future Features (Backlog)
 
 ### Static HTML Dashboard 📈
@@ -318,18 +346,6 @@ Test signal effectiveness historically:
 - Calculate win rate of each signal type
 - Sharpe ratio if followed signals
 - Compare vs buy-and-hold benchmarks
-
-### Graham Valuation Multiples 📐
-**Priority: LOW | Effort: LOW**
-
-Add Benjamin Graham valuation:
-- Graham Number: √(22.5 × EPS × Book Value)
-- Graham Multiple: P/E × P/B < 22.5
-- Margin of Safety calculation
-
-**Files to modify:**
-- `app/services/quote_fetcher.rb` (add calculations)
-- `db/migrate/xxx_add_graham_fields.rb` (add columns)
 
 ### Sector Correlation Matrix 🔗
 **Priority: LOW | Effort: MEDIUM**
