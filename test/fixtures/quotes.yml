@@ -15,6 +15,12 @@ petr4_today:
   news_count_pt: 2
   news_headline_pt: Petrobras sobe com alta do petroleo
   news_sentiment_label: positive
+  eps: 3.2
+  pb_ratio: 1.8
+  pe_ratio: 10.5
+  graham_number: 39.243
+  graham_multiple: 18.9
+  margin_of_safety_percent: 1.893
   quote_date: 2026-02-10
   fetched_at: 2026-02-10 18:00:00
 

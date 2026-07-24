@@ -125,6 +125,9 @@ module ExporterService
       pb_ratio: quote.pb_ratio&.round(2),
       dividend_yield: quote.dividend_yield&.round(2),
       eps: quote.eps&.round(2),
+      graham_number: quote.graham_number&.round(2),
+      graham_multiple: quote.graham_multiple&.round(2),
+      margin_of_safety_percent: quote.margin_of_safety_percent&.round(2),
       beta: quote.beta&.round(2),
       week_52_high: quote.week_52_high&.round(2),
       week_52_low: quote.week_52_low&.round(2),
@@ -551,7 +554,12 @@ module ExporterService
       dividend_yield_pct: rounded(row[:dividend_yield], 2, default: baselines[:dividend]),
       roe_pct: rounded(row[:roe], 2, default: baselines[:roe]),
       debt_to_equity: rounded(row[:debt_to_equity], 2, default: baselines[:debt]),
-      next_earnings_date: estimated_next_earnings_date(data_date, row[:tipo]).iso8601
+      next_earnings_date: estimated_next_earnings_date(data_date, row[:tipo]).iso8601,
+      graham_valuation: {
+        graham_number: row[:graham_number],
+        graham_multiple: row[:graham_multiple],
+        margin_of_safety_percent: row[:margin_of_safety_percent]
+      }
     }
   end
 
