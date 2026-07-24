@@ -33,3 +33,8 @@ production:
     class: WeeklyEmailJob
     queue: default
     schedule: "30 18 * * 5"
+
+  health_check:
+    class: HealthCheckJob
+    queue: default
+    schedule: "45 18 * * 1-5"

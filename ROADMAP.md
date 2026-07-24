@@ -43,6 +43,8 @@
 - [x] JSON API namespace: `/api/quotes`, `/api/signals`, `/api/scoring`
 - [x] Expanded JSON API: sectors, movers, news, report, refresh, watchlist, portfolios, positions, transactions, performance
 - [x] Data health endpoint: `/api/health/data`
+- [x] Data health summary embedded in exporter reports (Markdown/AI JSON) + scheduled `HealthCheckJob`
+- [x] Weekly market summary email (Action Mailer, Fridays 18:30)
 - [x] Parallel quote fetching with configurable worker pool (`QUOTE_FETCHER_CONCURRENCY`)
 - [x] Rake task suite: `quotes:*` and `export:*`
 
@@ -229,7 +231,7 @@ Notify users when important events happen:
 ---
 
 ### 8. Data Quality & Health Monitor ✅
-**Priority: MEDIUM | Effort: MEDIUM | Status: IN PROGRESS**
+**Status: DONE (2026-07-24)**
 
 Ensure data reliability before downstream analysis:
 - Detect stale quotes (last update older than N hours)
@@ -239,24 +241,22 @@ Ensure data reliability before downstream analysis:
 - Daily health report + alerts
 
 **Implementation notes:**
-- Implemented: `DataHealthChecker` service + `/api/health/data` endpoint with tests
-- Next: include health summary in exporter output + schedule recurring health job
-- Create `app/services/data_health_checker.rb` with validation rules
-- Add `/api/health/data` endpoint
-- Include health summary in generated reports
-- Add Solid Queue job for periodic health checks
+- `DataHealthChecker` service + `/api/health/data` endpoint with tests
+- `ExporterService.report_data` now embeds the health report under `:health`; the AI JSON report exposes it as `data_health`, and the Markdown report has a "Data Health" section
+- `HealthCheckJob` runs the checker on a schedule and logs `warning`/`critical` statuses (foundation for future alerting, e.g. Telegram)
+- `config/recurring.yml` runs the job weekdays at 18:45 (after quote fetch + report generation)
 
-**Files to create/modify:**
-- `app/services/data_health_checker.rb` (new)
-- `app/controllers/api/health_controller.rb` (new)
-- `app/jobs/health_check_job.rb` (new)
-- `app/services/exporter_service.rb` (include health summary)
-- `config/recurring.yml` (add health check schedule)
+**Files created/modified:**
+- `app/services/data_health_checker.rb`
+- `app/controllers/api/health_controller.rb`
+- `app/jobs/health_check_job.rb`
+- `app/services/exporter_service.rb` (health summary in report/AI/Markdown outputs)
+- `config/recurring.yml`
 
 ---
 
 ### 9. Weekly Email Report 📧
-**Priority: MEDIUM | Effort: LOW**
+**Status: DONE (2026-03-28)**
 
 Send summary email every Friday after market close:
 - Week's top gainers/losers
@@ -265,17 +265,16 @@ Send summary email every Friday after market close:
 - Portfolio performance
 
 **Implementation notes:**
-- Use Action Mailer (built into Rails)
-- Create `app/mailers/weekly_report_mailer.rb`
-- Create HTML email template in `app/views/weekly_report_mailer/`
-- Add Solid Queue recurring job: Fridays at 18:30
-- Support configurable recipient per user (email from OAuth)
+- Action Mailer with `WeeklyReportMailer.weekly_summary(user)`
+- `app/views/weekly_report_mailer/weekly_summary.html.erb`
+- `WeeklyEmailJob` enqueued for every `User` via `find_each`
+- Scheduled Fridays at 18:30 in `config/recurring.yml`
 
-**Files to create/modify:**
-- `app/mailers/weekly_report_mailer.rb` (new)
-- `app/views/weekly_report_mailer/weekly_summary.html.erb` (new)
-- `app/jobs/weekly_email_job.rb` (new)
-- `config/recurring.yml` (add Friday schedule)
+**Files:**
+- `app/mailers/weekly_report_mailer.rb`
+- `app/views/weekly_report_mailer/weekly_summary.html.erb`
+- `app/jobs/weekly_email_job.rb`
+- `config/recurring.yml`
 
 ---
 
