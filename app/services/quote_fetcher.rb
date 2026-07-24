@@ -160,6 +160,14 @@ class QuoteFetcher
       pct_from_52w_high: pct_from_52w
     }.merge(fundamentals).merge(technicals)
 
+    # Graham valuation multiples
+    quote_data.merge!(GrahamValuation.calculate(
+      eps: quote_data[:eps],
+      pb_ratio: quote_data[:pb_ratio],
+      pe_ratio: quote_data[:pe_ratio],
+      price: current
+    ))
+
     # Changes
     %i[1d 1w 1m ytd 5y all].each do |period|
       key = :"price_#{period}"
@@ -267,6 +275,9 @@ class QuoteFetcher
        beta week_52_high week_52_low pct_from_52w_high
        profit_margin roe debt_to_equity
        analyst_rating target_price num_analysts].each { |k| quote.send(:"#{k}=", g.call(k)) }
+
+    # Graham valuation multiples
+    %i[graham_number graham_multiple margin_of_safety_percent].each { |k| quote.send(:"#{k}=", g.call(k)) }
 
     # Technicals
     %i[ma_50 ma_200 rsi_14 above_ma_50 above_ma_200 ma_50_above_200
