@@ -270,6 +270,7 @@ module ExporterService
       },
       news_sentiment: { positive: positive_news, negative: negative_news },
       algorithmic: algo,
+      health: DataHealthChecker.report,
       all_data: rows
     }
   end
@@ -364,6 +365,15 @@ module ExporterService
       lines << ""
     end
 
+    health = data[:health]
+    if health
+      lines << "## Data Health"
+      lines << "- **Status**: #{health[:status]}"
+      lines << "- **Coverage**: #{health.dig(:totals, :assets_with_quotes)}/#{health.dig(:totals, :assets)} assets (#{health.dig(:totals, :coverage_percent)}%)"
+      lines << "- **Stale assets**: #{health.dig(:totals, :stale_assets)}"
+      lines << ""
+    end
+
     lines << "---"
     lines << "*Generated at #{data[:generated_at].strftime("%Y-%m-%d %H:%M:%S")} by Dracma*"
 
@@ -412,7 +422,8 @@ module ExporterService
       },
       market_movers: movers,
       assets: data[:all_data].sort_by { |row| row[:ticker].to_s }.map { |row| asset_payload(row, data_date) },
-      ai_actionable_insights: actionable_insights_payload(data, movers, data_date)
+      ai_actionable_insights: actionable_insights_payload(data, movers, data_date),
+      data_health: data[:health]
     }
   end
 

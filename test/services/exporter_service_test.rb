@@ -67,6 +67,13 @@ class ExporterServiceTest < ActiveSupport::TestCase
     assert_empty(gainers & losers)
   end
 
+  test "report_data includes a data health summary" do
+    report = ExporterService.report_data
+
+    assert_includes %w[healthy warning critical], report.dig(:health, :status)
+    assert_predicate report.dig(:health, :totals, :assets), :present?
+  end
+
   test "export_ai_report emits comprehensive metadata and sections" do
     with_ai_report_payload do |payload|
       assert_equal "comprehensive_daily_summary", payload.dig("metadata", "report_type")
@@ -110,6 +117,23 @@ class ExporterServiceTest < ActiveSupport::TestCase
 
       assert_includes summary_text, "\n"
     end
+  end
+
+  test "export_ai_report includes a data_health section" do
+    with_ai_report_payload do |payload|
+      assert_includes %w[healthy warning critical], payload.dig("data_health", "status")
+    end
+  end
+
+  test "export_human_report includes a Data Health section" do
+    filename = "report_test_#{SecureRandom.hex(4)}.md"
+    path = ExporterService.export_human_report(filename: filename)
+    content = File.read(path)
+
+    assert_includes content, "## Data Health"
+    assert_includes content, "**Status**:"
+  ensure
+    FileUtils.rm_f(path) if path
   end
 
   private
