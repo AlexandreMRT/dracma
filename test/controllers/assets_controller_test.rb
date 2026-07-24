@@ -25,6 +25,21 @@ class AssetsControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "show displays Graham valuation when computed" do
+    get asset_path(assets(:petr4))
+
+    assert_response :success
+    assert_includes response.body, "Valuation (Graham)"
+    assert_includes response.body, "Margin of Safety"
+  end
+
+  test "show notes missing fundamentals when Graham valuation is not computed" do
+    get asset_path(assets(:aapl))
+
+    assert_response :success
+    assert_includes response.body, "Not enough fundamental data"
+  end
+
   test "redirects to login when not authenticated" do
     reset!
     get assets_path

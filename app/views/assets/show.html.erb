@@ -54,6 +54,31 @@
       </div>
     </div>
 
+    <%# Graham Valuation %>
+    <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
+      <h2 class="text-lg font-semibold mb-3">Valuation (Graham)</h2>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+        <div>
+          <span class="text-gray-400">Graham Number:</span>
+          <span class="text-white"><%= @row[:graham_number] ? sprintf("%.2f", @row[:graham_number]) : "N/A" %></span>
+        </div>
+        <div>
+          <span class="text-gray-400">Graham Multiple:</span>
+          <% gm = @row[:graham_multiple] %>
+          <span class="<%= gm && gm <= 22.5 ? 'text-emerald-400' : 'text-white' %>"><%= gm ? sprintf("%.2f", gm) : "N/A" %></span>
+          <span class="text-gray-500 text-xs">(&lt; 22.5 is favorable)</span>
+        </div>
+        <div>
+          <span class="text-gray-400">Margin of Safety:</span>
+          <% mos = @row[:margin_of_safety_percent] %>
+          <span class="font-bold <%= mos && mos >= 0 ? 'text-emerald-400' : 'text-red-400' %>"><%= mos ? sprintf("%+.2f%%", mos) : "N/A" %></span>
+        </div>
+      </div>
+      <% if @row[:graham_number].nil? %>
+        <p class="text-gray-500 text-xs mt-2">Not enough fundamental data (EPS / P/B) to compute Graham valuation for this asset.</p>
+      <% end %>
+    </div>
+
     <%# Technicals %>
     <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
       <h2 class="text-lg font-semibold mb-3">Technicals</h2>

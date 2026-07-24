@@ -45,7 +45,7 @@
 - [x] Data health endpoint: `/api/health/data`
 - [x] Data health summary embedded in exporter reports (Markdown/AI JSON) + scheduled `HealthCheckJob`
 - [x] Weekly market summary email (Action Mailer, Fridays 18:30)
-- [x] Benjamin Graham valuation multiples (Graham Number, Graham Multiple, Margin of Safety) computed per quote and exposed in exports/API
+- [x] Benjamin Graham valuation multiples (Graham Number, Graham Multiple, Margin of Safety) computed per quote and exposed in exports/API/instrument detail page
 - [x] Parallel quote fetching with configurable worker pool (`QUOTE_FETCHER_CONCURRENCY`)
 - [x] Rake task suite: `quotes:*` and `export:*`
 
@@ -324,6 +324,104 @@ Benjamin Graham value-investing multiples, computed per quote:
 - `db/migrate/20260724185718_add_graham_fields_to_quotes.rb` (new columns)
 - `test/services/graham_valuation_test.rb` (new)
 
+---
+
+### 12. Signal Performance Tracker & Adaptive Scoring 🎯
+**Priority: HIGH | Effort: HIGH | Status: PLANNED (design finalized 2026-07-24)**
+
+Supersedes the old "Backtesting Engine" backlog idea (see note in Backlog section).
+Goal: measure how good our own signals/reports actually are, then use that feedback
+to tune `WatchlistScorer` weights — with humans in the loop before anything changes.
+
+**Design (finalized via stakeholder Q&A on 2026-07-24):**
+
+1. **What gets measured** — every signal/prediction type we currently produce:
+   - Technical signals (golden/death cross, RSI oversold/overbought, 52w high/low, volume spike)
+   - News/sentiment label (positive/negative) vs subsequent price movement
+   - `WatchlistScorer` composite score — do high-scored picks actually outperform?
+
+2. **Comparison baseline** — for each signal that fired on day X, evaluate at day X+7
+   and X+30:
+   - Raw price movement (did it move in the predicted direction?)
+   - Benchmark-relative movement (alpha vs IBOV/S&P 500 over the same window) — a
+     "bullish" call that merely tracked the market isn't a real win
+
+3. **Data source** — recompute directly from `Quote` history in the DB (reliable,
+   always queryable), cross-checked against archived `exports/*.json` AI reports
+   when available (validates that what was reported matches what the DB shows —
+   catches drift/bugs between the two)
+
+4. **Start now, don't wait** — begin accumulating measurement data immediately with
+   whatever history exists (rather than gating on 6+ months as originally scoped).
+   Confidence naturally improves as more history accumulates.
+
+5. **Evaluation horizons** — 1 week and 1 month after a signal fires (not 1 day —
+   too noisy; a fully custom/configurable horizon is a later refinement, not v1)
+
+6. **Output surfaces:**
+   - New dashboard page/section (e.g. `/signals/performance`) — win-rate per signal
+     type, sortable
+   - New API endpoint (e.g. `/api/signals/performance`) — for AI/programmatic consumption
+   - New section in the scheduled Markdown/AI report — "Signal Track Record"
+
+7. **Adaptive scoring (the ambitious part)** — automatically propose `WatchlistScorer`
+   weight adjustments based on measured performance, with guardrails since this feeds
+   AI reports/decisions:
+   - **Human-approved changes** — a proposed weight adjustment is generated, but only
+     applied after a human reviews and approves it (no silent auto-apply)
+   - **Minimum sample size gate** — a signal type needs ≥30 resolved (evaluated)
+     occurrences before its weight can be adjusted at all
+   - **Max change per cycle** — cap any single weight's shift to roughly ±10% per
+     tuning cycle, to prevent overfitting/whiplash from a lucky/unlucky streak
+   - **Monthly cadence** — re-evaluate performance and generate proposals once a
+     month via a scheduled job, not continuously
+
+**Proposed architecture:**
+- `SignalOutcome` model — one row per (asset, signal_type, fired_at); captures the
+  signal snapshot, then resolves `price_change_1w`/`price_change_1m` +
+  benchmark-relative alpha once the horizon passes
+- `SignalPerformanceEvaluator` service — walks `Quote` history, finds where each
+  signal fired historically (via the existing `signal_*` columns), computes actual
+  forward returns, upserts `SignalOutcome` rows
+- `ScoringWeightProposal` model — stores a proposed weight delta set + the
+  performance data that justified it + approval status (pending/approved/rejected)
+  + `applied_at`
+- `ScoringWeightTuner` service — monthly job reads resolved `SignalOutcome`s,
+  generates a `ScoringWeightProposal` (respecting min sample size + max change
+  caps); does NOT auto-apply
+- Human approval UI — a simple page listing pending proposals with before/after
+  weights and the supporting win-rate data; approving updates `WatchlistScorer`'s
+  active weights (this likely requires moving the current hardcoded weights into
+  a DB-backed or config-backed store first)
+- `app/controllers/signals_performance_controller.rb` + `/signals/performance` view
+- `app/controllers/api/signal_performance_controller.rb` + `/api/signals/performance`
+- `ExporterService` — add a "Signal Track Record" section to Markdown/AI reports
+- Scheduled jobs: `EvaluateSignalPerformanceJob` (daily, resolves matured outcomes)
+  + `ProposeScoringWeightsJob` (monthly, generates proposals)
+
+**Open implementation questions for whoever picks this up:**
+- Where `WatchlistScorer`'s weights currently live (hardcoded constants) — they
+  need to be extracted into something adjustable before auto-tuning is possible
+- Need a `SignalOutcome` migration; decide uniqueness constraint, likely
+  `(asset_id, signal_type, fired_at)`
+- How "benchmark-relative alpha" is computed for non-stock asset types
+  (commodities/crypto/currency don't have `vs_ibov`/`vs_sp500` comparisons — may
+  need to exclude them or use a different baseline, e.g. crypto vs a crypto index)
+
+**Files to create:**
+- `db/migrate/xxx_create_signal_outcomes.rb`
+- `db/migrate/xxx_create_scoring_weight_proposals.rb`
+- `app/models/signal_outcome.rb`
+- `app/models/scoring_weight_proposal.rb`
+- `app/services/signal_performance_evaluator.rb`
+- `app/services/scoring_weight_tuner.rb`
+- `app/jobs/evaluate_signal_performance_job.rb`
+- `app/jobs/propose_scoring_weights_job.rb`
+- `app/controllers/signals_performance_controller.rb`
+- `app/controllers/api/signal_performance_controller.rb`
+- `app/views/signals_performance/index.html.erb`
+- `config/recurring.yml` (daily evaluation + monthly proposal generation)
+
 
 ---
 
@@ -339,13 +437,9 @@ Generate a self-contained HTML file daily with interactive charts:
 - Save to `exports/dashboard_YYYY-MM-DD.html`
 
 ### Backtesting Engine 🧪
-**Priority: LOW | Effort: HIGH**
-
-Test signal effectiveness historically:
-- Requires historical data accumulation (run for 6+ months first)
-- Calculate win rate of each signal type
-- Sharpe ratio if followed signals
-- Compare vs buy-and-hold benchmarks
+**Superseded by item 12 ("Signal Performance Tracker & Adaptive Scoring") above.**
+The original idea here (win rate, Sharpe ratio, vs buy-and-hold) is now folded into
+that item's fully-specced design — see the Priority Features section.
 
 ### Sector Correlation Matrix 🔗
 **Priority: LOW | Effort: MEDIUM**
