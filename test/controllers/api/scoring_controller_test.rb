@@ -14,8 +14,9 @@ module Api
       assert_response :success
       body = JSON.parse(response.body)
 
-      assert_equal [ "AAPL" ], body["watchlist"].map { |entry| entry["ticker"] }
+      assert_empty body["watchlist"]
       assert_empty body["avoid_list"]
+      assert_equal "disabled", body.dig("recommendation_policy", "status")
     end
 
     test "requires authentication" do

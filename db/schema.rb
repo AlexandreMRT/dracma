@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_24_185718) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_26_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -23,6 +23,22 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_24_185718) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["ticker"], name: "index_assets_on_ticker", unique: true
+  end
+
+  create_table "market_data_runs", force: :cascade do |t|
+    t.string "provider", null: false
+    t.string "status", default: "running", null: false
+    t.datetime "started_at", null: false
+    t.datetime "finished_at"
+    t.integer "requested_count", default: 0, null: false
+    t.integer "succeeded_count", default: 0, null: false
+    t.integer "failed_count", default: 0, null: false
+    t.jsonb "failed_tickers", default: [], null: false
+    t.text "error_summary"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["started_at"], name: "index_market_data_runs_on_started_at"
+    t.index ["status"], name: "index_market_data_runs_on_status"
   end
 
   create_table "portfolios", force: :cascade do |t|
@@ -45,7 +61,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_24_185718) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["portfolio_id", "ticker"], name: "index_positions_on_portfolio_id_and_ticker", unique: true
+    t.string "broker", default: "", null: false
+    t.index ["portfolio_id", "ticker", "broker"], name: "index_positions_on_portfolio_ticker_broker", unique: true
     t.index ["portfolio_id"], name: "index_positions_on_portfolio_id"
   end
 
@@ -160,6 +177,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_24_185718) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "broker", default: "", null: false
+    t.index ["portfolio_id", "ticker", "broker", "transaction_date"], name: "index_transactions_on_portfolio_ticker_broker_date"
     t.index ["portfolio_id"], name: "index_transactions_on_portfolio_id"
   end
 

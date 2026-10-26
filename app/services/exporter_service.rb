@@ -259,13 +259,15 @@ module ExporterService
     usd_brl = rows.find { |r| r[:tipo] == "currency" }&.dig(:preco_brl)
 
     health = DataHealthChecker.report
-    recommendations_enabled = health[:status] == "healthy"
+    recommendation_policy = RecommendationPolicy.evaluate(health: health)
+    recommendations_enabled = recommendation_policy[:enabled]
     algo = recommendations_enabled ? WatchlistScorer.build(all) : { watchlist: [], avoid_list: [] }
 
     {
       generated_at: Time.current,
       report_date: report_date,
       recommendations_enabled: recommendations_enabled,
+      recommendation_policy: recommendation_policy,
       total_assets: rows.size,
       counts: { brazil_stocks: br.size, us_stocks: us.size, commodities: comm.size, crypto: cry.size },
       market_context: { ibov_ytd: ibov_ytd, sp500_ytd: sp500_ytd, usd_brl: usd_brl },

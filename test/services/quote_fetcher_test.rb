@@ -19,10 +19,10 @@ class QuoteFetcherTest < ActiveSupport::TestCase
     fetcher.define_singleton_method(:worker_count) { 3 }
     fetcher.define_singleton_method(:fetch_single) { |entry| responses[entry[:ticker]] }
 
-    results, errors = fetcher.send(:fetch_catalog, entries)
+    results, failed_tickers = fetcher.send(:fetch_catalog, entries)
 
     assert_equal [ "BTC-USD", "PETR4.SA" ], results.map { |result| result[:ticker] }.sort
-    assert_equal 1, errors
+    assert_equal [ "AAPL" ], failed_tickers
   end
 
   test "preserves the catalog asset type for US stocks" do

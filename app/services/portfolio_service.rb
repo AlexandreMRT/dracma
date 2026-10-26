@@ -58,18 +58,20 @@ module PortfolioService
     transaction_date ||= Time.current
     total_brl = (quantity * price_brl) + fees_brl
 
-    txn = portfolio.transactions.create!(
-      ticker: ticker.upcase,
-      transaction_type: transaction_type,
-      quantity: quantity,
-      price_brl: price_brl,
-      total_brl: total_brl,
-      fees_brl: fees_brl,
-      transaction_date: transaction_date,
-    )
+    portfolio.transaction do
+      txn = portfolio.transactions.create!(
+        ticker: ticker.upcase,
+        transaction_type: transaction_type,
+        quantity: quantity,
+        price_brl: price_brl,
+        total_brl: total_brl,
+        fees_brl: fees_brl,
+        transaction_date: transaction_date,
+      )
 
-    update_position_from_transaction(portfolio, ticker, txn)
-    txn
+      update_position_from_transaction(portfolio, ticker, txn)
+      txn
+    end
   end
 
   def self.delete_transaction(portfolio, transaction_id)
@@ -105,6 +107,7 @@ module PortfolioService
       end
     when "sell"
       return unless pos
+      raise ArgumentError, "Cannot sell more than the held quantity" if txn.quantity > pos.quantity
 
       pos.quantity -= txn.quantity
       if pos.quantity <= 0

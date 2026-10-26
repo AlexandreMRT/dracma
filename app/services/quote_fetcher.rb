@@ -14,6 +14,7 @@ class QuoteFetcher
   def fetch_all
     @logger.info("=== QuoteFetcher: starting full fetch ===")
     start = Time.current
+    run = MarketDataRun.create!(provider: "yahoo_finance", started_at: start)
 
     @usd_brl = fetch_usd_brl
     @benchmarks = fetch_benchmarks
@@ -22,24 +23,37 @@ class QuoteFetcher
     catalog = build_asset_list
     @logger.info("Assets to fetch: #{catalog.size}")
 
-    results, errors = fetch_catalog(catalog)
+    results, failed_tickers = fetch_catalog(catalog)
 
     # Fetch news for stocks only
     fetch_news(results.select { |result| %w[stock us_stock].include?(result[:type]) })
 
     # Save to database
     saved = save_all(results)
+    failed_count = catalog.size - saved
+    run.update!(
+      status: failed_count.zero? ? "completed" : "partial",
+      finished_at: Time.current,
+      requested_count: catalog.size,
+      succeeded_count: saved,
+      failed_count: failed_count,
+      failed_tickers: failed_tickers,
+      error_summary: failed_count.positive? ? "#{failed_count} asset fetches or saves failed" : nil
+    )
 
     elapsed = Time.current - start
     @logger.info("=== QuoteFetcher complete: #{saved}/#{catalog.size} saved in #{elapsed.round(1)}s ===")
-    [ saved, errors ]
+    [ saved, failed_count ]
+  rescue StandardError => e
+    run&.update(status: "failed", finished_at: Time.current, error_summary: e.message)
+    raise
   end
 
   private
 
   def fetch_catalog(catalog)
     results = []
-    errors = 0
+    failed_tickers = []
     mutex = Mutex.new
 
     parallel_each(catalog) do |entry|
@@ -49,12 +63,12 @@ class QuoteFetcher
         if result
           results << result
         else
-          errors += 1
+          failed_tickers << entry[:ticker]
         end
       end
     end
 
-    [ results, errors ]
+    [ results, failed_tickers ]
   end
 
   def fetch_news(results)

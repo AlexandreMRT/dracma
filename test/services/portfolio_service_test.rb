@@ -84,6 +84,19 @@ class PortfolioServiceTest < ActiveSupport::TestCase
     assert_nil pos
   end
 
+  test "rejects selling more than the held quantity" do
+    new_portfolio = PortfolioService.create_portfolio(@alice, name: "Oversell Test")
+    PortfolioService.add_transaction(new_portfolio, ticker: "TEST", transaction_type: "buy",
+      quantity: 10, price_brl: 10.0)
+
+    assert_raises(ArgumentError) do
+      PortfolioService.add_transaction(new_portfolio, ticker: "TEST", transaction_type: "sell",
+        quantity: 11, price_brl: 12.0)
+    end
+
+    assert_equal 0, new_portfolio.transactions.where(transaction_type: :sell).count
+  end
+
   test "portfolio_performance returns hash" do
     perf = PortfolioService.portfolio_performance(@portfolio)
 
