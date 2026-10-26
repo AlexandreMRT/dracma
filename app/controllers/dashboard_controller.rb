@@ -17,5 +17,7 @@ class DashboardController < ApplicationController
     @sp500_ytd = snapshot[:sp500_ytd]
     @usd_brl = snapshot[:usd_brl]
     @watchlist_data = snapshot[:watchlist_data]
+    @data_health = snapshot[:data_health]
+    @recommendation_policy = snapshot[:recommendation_policy]
   end
 end

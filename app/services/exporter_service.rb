@@ -52,7 +52,9 @@ module ExporterService
       usd_brl: nil,
       gainers: [],
       losers: [],
-      watchlist_data: []
+      watchlist_data: { watchlist: [], avoid_list: [] },
+      data_health: nil,
+      recommendation_policy: nil
     }
 
     all_stocks = []
@@ -88,7 +90,13 @@ module ExporterService
 
     data[:gainers] = with_1d.max_by(5) { |row| row[:var_1d] || 0 }
     data[:losers] = with_1d.min_by(5) { |row| row[:var_1d] || 0 }
-    data[:watchlist_data] = WatchlistScorer.build(all_stocks)
+    data[:data_health] = DataHealthChecker.report
+    data[:recommendation_policy] = RecommendationPolicy.evaluate(health: data[:data_health])
+    data[:watchlist_data] = if data[:recommendation_policy][:enabled]
+      WatchlistScorer.build(all_stocks)
+    else
+      { watchlist: [], avoid_list: [] }
+    end
 
     data
   end

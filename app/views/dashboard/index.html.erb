@@ -1,6 +1,13 @@
 <% content_for(:title) { "Dashboard — Dracma" } %>
 
 <div class="space-y-8" data-controller="auto-refresh" data-auto-refresh-interval-value="300000" data-auto-refresh-url-value="<%= root_path %>">
+  <% if @recommendation_policy && !@recommendation_policy[:enabled] %>
+    <div class="rounded-lg border border-amber-700 bg-amber-950/40 p-4 text-amber-200">
+      <p class="font-semibold">Recommendations paused</p>
+      <p class="mt-1 text-sm"><%= @recommendation_policy[:reasons].join("; ") %>.</p>
+    </div>
+  <% end %>
+
   <%# Market Overview %>
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
     <div class="bg-gray-800 rounded-lg p-4 border border-gray-700">
