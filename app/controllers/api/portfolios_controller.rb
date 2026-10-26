@@ -2,7 +2,7 @@
 
 module Api
   class PortfoliosController < BaseController
-    before_action :set_portfolio, only: %i[show update destroy performance]
+    before_action :set_portfolio, only: %i[show update destroy performance risk]
 
     def index
       portfolios = PortfolioService.user_portfolios(current_user)
@@ -46,6 +46,10 @@ module Api
 
     def performance
       render_json(PortfolioService.portfolio_performance(@portfolio))
+    end
+
+    def risk
+      render_json(PortfolioRiskService.analyze(@portfolio))
     end
 
     private

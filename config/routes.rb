@@ -45,6 +45,7 @@ Rails.application.routes.draw do
     resources :portfolios do
       member do
         get :performance
+        get :risk
       end
       resources :positions, only: [ :index ], controller: "portfolio_positions"
       resources :transactions, only: [ :index, :create, :destroy ], controller: "portfolio_transactions"

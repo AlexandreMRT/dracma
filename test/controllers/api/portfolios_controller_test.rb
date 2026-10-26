@@ -69,5 +69,15 @@ module Api
 
       assert_equal "Portfolio not found", body["error"]
     end
+
+  test "risk returns concentration analysis" do
+    get "/api/portfolios/#{@portfolio.id}/risk", as: :json
+
+    assert_response :success
+    body = JSON.parse(response.body)
+
+    assert_equal "concentrated", body["status"]
+    assert_includes body["warnings"], "PETR4.SA is 100.0% of the portfolio"
+  end
   end
 end
