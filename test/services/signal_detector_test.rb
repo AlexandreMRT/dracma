@@ -37,7 +37,7 @@ class SignalDetectorTest < ActiveSupport::TestCase
 
   test "detects golden cross" do
     data = { rsi_14: 50.0, week_52_high: 100, week_52_low: 50, close: 80,
-             volume_ratio: 1.0, ma_50_above_200: 1, above_ma_50: 1, above_ma_200: 1 }
+             volume_ratio: 1.0, golden_cross: true, above_ma_50: 1, above_ma_200: 1 }
     result = SignalDetector.detect(data)
 
     assert result.golden_cross
@@ -45,10 +45,19 @@ class SignalDetectorTest < ActiveSupport::TestCase
 
   test "detects death cross" do
     data = { rsi_14: 50.0, week_52_high: 100, week_52_low: 50, close: 60,
-             volume_ratio: 1.0, ma_50_above_200: 0, above_ma_50: 0, above_ma_200: 0 }
+             volume_ratio: 1.0, death_cross: true, above_ma_50: 0, above_ma_200: 0 }
     result = SignalDetector.detect(data)
 
     assert result.death_cross
+  end
+
+  test "does not treat moving-average state as a new cross" do
+    data = { rsi_14: 50.0, week_52_high: 100, week_52_low: 50, close: 80,
+             volume_ratio: 1.0, ma_50_above_200: 1, above_ma_50: 1, above_ma_200: 1 }
+    result = SignalDetector.detect(data)
+
+    refute result.golden_cross
+    refute result.death_cross
   end
 
   test "as_db_flags returns integer flags" do

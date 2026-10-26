@@ -83,6 +83,14 @@ class ExporterServiceTest < ActiveSupport::TestCase
     assert_empty(gainers & losers)
   end
 
+  test "report_data only includes quotes from the report date" do
+    Quote.create!(asset: assets(:petr4), price_brl: 40.0, change_1d: 2.0, quote_date: Date.new(2026, 2, 11))
+
+    report = ExporterService.report_data
+
+    assert_equal [ Date.new(2026, 2, 11) ], report[:all_data].map { |row| Date.iso8601(row[:data_cotacao]) }.uniq
+  end
+
   test "report_data includes a data health summary" do
     report = ExporterService.report_data
 
@@ -139,6 +147,16 @@ class ExporterServiceTest < ActiveSupport::TestCase
   test "export_ai_report includes a data_health section" do
     with_ai_report_payload do |payload|
       assert_includes %w[healthy warning critical], payload.dig("data_health", "status")
+    end
+  end
+
+  test "export_ai_report does not invent unavailable fundamentals or targets" do
+    with_ai_report_payload do |payload|
+      aapl = payload.fetch("assets").find { |asset| asset["ticker"] == "AAPL" }
+
+      assert_nil aapl.dig("fundamentals", "pe_ratio")
+      assert_nil aapl.dig("sentiment", "target_price_avg")
+      assert_equal "Not available", aapl.dig("sentiment", "analyst_consensus")
     end
   end
 

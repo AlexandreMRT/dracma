@@ -7,8 +7,14 @@ module DataHealthChecker
 
   def self.report(stale_after_hours: DEFAULT_STALE_AFTER_HOURS, outlier_change_1d_pct: DEFAULT_OUTLIER_CHANGE_1D_PCT)
     latest_quotes = latest_quotes_for_assets
-    total_assets = Asset.count
+    expected_tickers = AssetCatalog.all.keys
+    total_assets = expected_tickers.size
     assets_with_quotes = latest_quotes.size
+    tracked_assets = Asset.where(ticker: expected_tickers).count
+    missing_assets = expected_tickers - latest_quotes.map { |quote| quote.asset.ticker }
+    latest_date = latest_quotes.map(&:quote_date).compact.max
+    current_date_quotes = latest_quotes.select { |quote| quote.quote_date.to_date == latest_date&.to_date }
+    missing_current_date = expected_tickers - current_date_quotes.map { |quote| quote.asset.ticker }
 
     stale_cutoff = stale_after_hours.to_f.hours.ago
     stale_quotes = latest_quotes.select { |quote| quote.fetched_at.nil? || quote.fetched_at < stale_cutoff }
@@ -26,24 +32,33 @@ module DataHealthChecker
         stale_count: stale_quotes.size,
         missing_price_count: missing_price_quotes.size,
         missing_volume_count: missing_volume_quotes.size,
-        outlier_count: outlier_quotes.size
+        outlier_count: outlier_quotes.size,
+        missing_current_date_count: missing_current_date.size
       ),
       generated_at: Time.current.iso8601,
       latest_quote_date: latest_quotes.map(&:quote_date).compact.max&.strftime("%Y-%m-%d"),
-      totals: {
-        assets: total_assets,
-        assets_with_quotes: assets_with_quotes,
-        stale_assets: stale_quotes.size,
-        missing_price_assets: missing_price_quotes.size,
-        missing_volume_assets: missing_volume_quotes.size,
-        outlier_change_1d_assets: outlier_quotes.size,
-        coverage_percent: percent(assets_with_quotes, total_assets)
-      },
       samples: {
         stale_tickers: sample_tickers(stale_quotes),
         missing_price_tickers: sample_tickers(missing_price_quotes),
         missing_volume_tickers: sample_tickers(missing_volume_quotes),
-        outlier_change_1d_tickers: sample_tickers(outlier_quotes)
+        outlier_change_1d_tickers: sample_tickers(outlier_quotes),
+        missing_tickers: missing_assets.first(MAX_SAMPLE_SIZE),
+        missing_current_date_tickers: missing_current_date.first(MAX_SAMPLE_SIZE)
+      },
+      current_date: latest_date&.strftime("%Y-%m-%d"),
+      totals: {
+        assets: total_assets,
+        tracked_assets: tracked_assets,
+        assets_with_quotes: assets_with_quotes,
+        current_date_assets: current_date_quotes.size,
+        stale_assets: stale_quotes.size,
+        missing_price_assets: missing_price_quotes.size,
+        missing_volume_assets: missing_volume_quotes.size,
+        outlier_change_1d_assets: outlier_quotes.size,
+        coverage_percent: percent(current_date_quotes.size, total_assets),
+        latest_coverage_percent: percent(assets_with_quotes, total_assets),
+        missing_assets: missing_assets.size,
+        missing_current_date_assets: missing_current_date.size
       }
     }
   end
@@ -57,12 +72,12 @@ module DataHealthChecker
       .to_a
   end
 
-  def self.status_for(total_assets:, assets_with_quotes:, stale_count:, missing_price_count:, missing_volume_count:, outlier_count:)
+  def self.status_for(total_assets:, assets_with_quotes:, stale_count:, missing_price_count:, missing_volume_count:, outlier_count:, missing_current_date_count:)
     return "warning" if total_assets.zero?
     return "critical" if total_assets.positive? && assets_with_quotes.zero?
     return "critical" if assets_with_quotes.positive? && stale_count >= (assets_with_quotes / 2.0).ceil
 
-    if stale_count.positive? || missing_price_count.positive? || missing_volume_count.positive? || outlier_count.positive?
+    if missing_current_date_count.positive? || stale_count.positive? || missing_price_count.positive? || missing_volume_count.positive? || outlier_count.positive?
       "warning"
     else
       "healthy"

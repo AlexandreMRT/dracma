@@ -222,7 +222,8 @@ module ExporterService
 
   # --- Report data builder ---
   def self.report_data
-    rows = latest_rows
+    report_date = latest_report_date
+    rows = latest_rows(quote_date: report_date)
     return nil if rows.empty?
 
     br   = rows.select { |r| r[:tipo] == "stock" }
@@ -257,10 +258,14 @@ module ExporterService
     sp500_ytd = rows.find { |r| r[:sp500_change_ytd] }&.dig(:sp500_change_ytd)
     usd_brl = rows.find { |r| r[:tipo] == "currency" }&.dig(:preco_brl)
 
-    algo = WatchlistScorer.build(all)
+    health = DataHealthChecker.report
+    recommendations_enabled = health[:status] == "healthy"
+    algo = recommendations_enabled ? WatchlistScorer.build(all) : { watchlist: [], avoid_list: [] }
 
     {
       generated_at: Time.current,
+      report_date: report_date,
+      recommendations_enabled: recommendations_enabled,
       total_assets: rows.size,
       counts: { brazil_stocks: br.size, us_stocks: us.size, commodities: comm.size, crypto: cry.size },
       market_context: { ibov_ytd: ibov_ytd, sp500_ytd: sp500_ytd, usd_brl: usd_brl },
@@ -273,7 +278,7 @@ module ExporterService
       },
       news_sentiment: { positive: positive_news, negative: negative_news },
       algorithmic: algo,
-      health: DataHealthChecker.report,
+      health: health,
       all_data: rows
     }
   end
@@ -372,8 +377,9 @@ module ExporterService
     if health
       lines << "## Data Health"
       lines << "- **Status**: #{health[:status]}"
-      lines << "- **Coverage**: #{health.dig(:totals, :assets_with_quotes)}/#{health.dig(:totals, :assets)} assets (#{health.dig(:totals, :coverage_percent)}%)"
+      lines << "- **Coverage on report date**: #{health.dig(:totals, :current_date_assets)}/#{health.dig(:totals, :assets)} assets (#{health.dig(:totals, :coverage_percent)}%)"
       lines << "- **Stale assets**: #{health.dig(:totals, :stale_assets)}"
+      lines << "- **Missing on report date**: #{health.dig(:totals, :missing_current_date_assets)}"
       lines << ""
     end
 
@@ -504,8 +510,8 @@ module ExporterService
       price_data: {
         current_price: rounded(current_price, 2),
         change_1d_pct: rounded(row[:var_1d], 2),
-        change_ytd_pct: rounded(row[:var_ytd], 2, default: rounded(row[:var_1d], 2) * 20.0),
-        volume_vs_avg_20d: rounded(row[:volume_ratio], 2, default: 1.0)
+        change_ytd_pct: rounded_or_nil(row[:var_ytd], 2),
+        volume_vs_avg_20d: rounded_or_nil(row[:volume_ratio], 2)
       },
       fundamentals: fundamentals,
       technicals: {
@@ -518,7 +524,7 @@ module ExporterService
       sentiment: {
         news_score: rounded(row[:news_sentiment_combined], 3),
         analyst_consensus: analyst_consensus_for(row),
-        target_price_avg: rounded(row[:target_price], 2, default: estimated_target_price(row, current_price))
+        target_price_avg: rounded_or_nil(row[:target_price], 2)
       }
     }
   end
@@ -540,33 +546,18 @@ module ExporterService
   end
 
   def self.estimated_fundamentals(row, data_date)
-    baselines = case row[:tipo]
-    when "stock"
-                  { pe: 11.0, dividend: 6.0, roe: 14.0, debt: 0.7 }
-    when "us_stock"
-                  { pe: 20.0, dividend: 1.8, roe: 16.0, debt: 1.1 }
-    else
-                  { pe: 0.0, dividend: 0.0, roe: 0.0, debt: 0.0 }
-    end
-
     {
-      pe_ratio: rounded(row[:pe_ratio] || row[:forward_pe], 2, default: baselines[:pe]),
-      dividend_yield_pct: rounded(row[:dividend_yield], 2, default: baselines[:dividend]),
-      roe_pct: rounded(row[:roe], 2, default: baselines[:roe]),
-      debt_to_equity: rounded(row[:debt_to_equity], 2, default: baselines[:debt]),
-      next_earnings_date: estimated_next_earnings_date(data_date, row[:tipo]).iso8601,
+      pe_ratio: rounded_or_nil(row[:pe_ratio] || row[:forward_pe], 2),
+      dividend_yield_pct: rounded_or_nil(row[:dividend_yield], 2),
+      roe_pct: rounded_or_nil(row[:roe], 2),
+      debt_to_equity: rounded_or_nil(row[:debt_to_equity], 2),
+      next_earnings_date: nil,
       graham_valuation: {
         graham_number: row[:graham_number],
         graham_multiple: row[:graham_multiple],
         margin_of_safety_percent: row[:margin_of_safety_percent]
       }
     }
-  end
-
-  def self.estimated_next_earnings_date(data_date, asset_type)
-    return data_date unless %w[stock us_stock].include?(asset_type)
-
-    data_date + 45
   end
 
   def self.macd_signal_for(row)
@@ -635,27 +626,7 @@ module ExporterService
     return "Buy" if rating.include?("buy")
     return "Hold" if rating.include?("hold")
     return "Sell" if rating.include?("sell")
-    return "Buy" if row[:signal_summary] == "bullish"
-    return "Sell" if row[:signal_summary] == "bearish"
-
-    "Hold"
-  end
-
-  def self.estimated_target_price(row, current_price)
-    base_multiplier = case row[:signal_summary]
-    when "bullish"
-                        1.10
-    when "bearish"
-                        0.92
-    else
-                        1.03
-    end
-
-    news = row[:news_sentiment_combined].to_f
-    base_multiplier += 0.03 if news >= 0.3
-    base_multiplier -= 0.03 if news <= -0.3
-
-    current_price.to_f * base_multiplier
+    "Not available"
   end
 
   def self.actionable_insights_payload(data, movers, data_date)
@@ -676,14 +647,16 @@ module ExporterService
     line_one = "Data date #{data_date.iso8601}: #{data[:signals][:bullish].size} bullish vs #{data[:signals][:bearish].size} bearish signals across #{data[:total_assets]} assets."
 
     news_coverage = data[:news_sentiment][:positive].size + data[:news_sentiment][:negative].size
-    line_two = if news_coverage.positive?
+    line_two = if !data[:recommendations_enabled]
+                 "Actionable recommendations disabled because data health is #{data.dig(:health, :status)}."
+               elsif news_coverage.positive?
                  "Sentiment coverage includes #{news_coverage} assets; movers are sorted and non-overlapping for cleaner triage."
-    else
+               else
                  "News sentiment coverage is limited today; prioritize technical and valuation factors until new headlines are ingested."
-    end
+               end
 
     {
-      high_conviction_buys: high_conviction_buys.uniq.first(8),
+      high_conviction_buys: data[:recommendations_enabled] ? high_conviction_buys.uniq.first(8) : [],
       high_risk_warnings: high_risk_warnings.uniq.first(8),
       market_summary_text: "#{line_one}\n#{line_two}"
     }
@@ -692,6 +665,14 @@ module ExporterService
   def self.rounded(value, decimals = 2, default: 0.0)
     numeric = value.nil? ? default : value.to_f
     numeric.round(decimals)
+  end
+
+  def self.rounded_or_nil(value, decimals = 2)
+    value.nil? ? nil : value.to_f.round(decimals)
+  end
+
+  def self.latest_report_date
+    Quote.maximum(:quote_date)&.to_date
   end
 
   def self.first_present(rows, key)
@@ -705,9 +686,9 @@ module ExporterService
 
   private_class_method :comprehensive_ai_report, :report_data_date, :market_movers_payload,
                        :mover_reason, :asset_payload, :preferred_price, :estimated_fundamentals,
-                       :estimated_next_earnings_date, :macd_signal_for, :price_vs_ma200_for,
-                       :support_resistance_for, :analyst_consensus_for, :estimated_target_price,
-                       :actionable_insights_payload, :rounded, :first_present
+                       :macd_signal_for, :price_vs_ma200_for,
+                       :support_resistance_for, :analyst_consensus_for,
+                       :actionable_insights_payload, :rounded, :rounded_or_nil, :latest_report_date, :first_present
 
   # --- Generate both reports ---
   def self.generate_reports

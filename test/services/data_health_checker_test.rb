@@ -32,7 +32,7 @@ class DataHealthCheckerTest < ActiveSupport::TestCase
     report = DataHealthChecker.report(stale_after_hours: 6, outlier_change_1d_pct: 15.0)
 
     assert_includes %w[warning critical], report[:status]
-    assert_equal baseline.dig(:totals, :assets) + 2, report.dig(:totals, :assets)
+    assert_equal baseline.dig(:totals, :assets), report.dig(:totals, :assets)
     assert_equal baseline.dig(:totals, :assets_with_quotes) + 2, report.dig(:totals, :assets_with_quotes)
     assert_operator report.dig(:totals, :stale_assets), :>=, baseline.dig(:totals, :stale_assets) + 1
     assert_operator report.dig(:totals, :missing_volume_assets), :>=, baseline.dig(:totals, :missing_volume_assets) + 1
@@ -70,14 +70,14 @@ class DataHealthCheckerTest < ActiveSupport::TestCase
     assert_operator report.dig(:totals, :outlier_change_1d_assets), :>=, 1
   end
 
-  test "report is warning when no assets exist" do
+  test "report is critical when no quotes exist" do
     Quote.delete_all
     Asset.delete_all
 
     report = DataHealthChecker.report
 
-    assert_equal "warning", report[:status]
-    assert_equal 0, report.dig(:totals, :assets)
+    assert_equal "critical", report[:status]
+    assert_operator report.dig(:totals, :assets), :>, 0
     assert_equal 0, report.dig(:totals, :assets_with_quotes)
     assert_in_delta 0.0, report.dig(:totals, :coverage_percent)
   end

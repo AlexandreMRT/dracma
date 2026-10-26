@@ -25,7 +25,7 @@ class QuoteFetcher
     results, errors = fetch_catalog(catalog)
 
     # Fetch news for stocks only
-    fetch_news(results.select { |result| %w[stock us_stock].include?(result[:asset_type]) })
+    fetch_news(results.select { |result| %w[stock us_stock].include?(result[:type]) })
 
     # Save to database
     saved = save_all(results)
@@ -226,12 +226,14 @@ class QuoteFetcher
   def save_all(results)
     saved = 0
     results.each do |r|
-      asset = Asset.find_or_create_by!(ticker: r[:ticker]) do |a|
-        a.name = r.dig(:info, :name) || "Desconhecido"
-        a.sector = r.dig(:info, :sector) || "Outro"
-        a.asset_type = normalize_type(r[:type])
-        a.unit = r.dig(:info, :unit) || ""
-      end
+      asset = Asset.find_or_initialize_by(ticker: r[:ticker])
+      asset.assign_attributes(
+        name: r.dig(:info, :name) || "Desconhecido",
+        sector: r.dig(:info, :sector) || "Outro",
+        asset_type: normalize_type(r[:type]),
+        unit: r.dig(:info, :unit) || ""
+      )
+      asset.save!
 
       qd = r[:quote_data]
       quote_date = qd[:date].is_a?(Date) ? qd[:date].to_datetime : qd[:date]
@@ -248,7 +250,7 @@ class QuoteFetcher
   end
 
   def normalize_type(type)
-    type == "us_stock" ? "stock" : type
+    type
   end
 
   def assign_quote_fields(quote, qd, price_brl, price_usd)
@@ -326,6 +328,13 @@ class QuoteFetcher
       result[:ma_200] = ma200
       result[:above_ma_200] = current > ma200 ? 1 : 0
       result[:ma_50_above_200] = result[:ma_50] && result[:ma_50] > ma200 ? 1 : 0 if result[:ma_50]
+
+      if closes.size >= 201 && result[:ma_50]
+        previous_ma50 = closes.last(51).first(50).sum / 50.0
+        previous_ma200 = closes.last(201).first(200).sum / 200.0
+        result[:golden_cross] = previous_ma50 <= previous_ma200 && result[:ma_50] > ma200
+        result[:death_cross] = previous_ma50 >= previous_ma200 && result[:ma_50] < ma200
+      end
     end
 
     # RSI

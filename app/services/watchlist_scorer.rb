@@ -46,12 +46,12 @@ module WatchlistScorer
         reasons << "golden_cross"
       end
 
-      if value_for(r, :above_ma_50)
+      if flag?(value_for(r, :above_ma_50))
         score += 0.5
         reasons << "above_ma50"
       end
 
-      if value_for(r, :above_ma_200)
+      if flag?(value_for(r, :above_ma_200))
         score += 0.5
         reasons << "above_ma200"
       end
@@ -126,5 +126,9 @@ module WatchlistScorer
 
   def self.value_for(row, key)
     row[key] || row[key.to_s]
+  end
+
+  def self.flag?(value)
+    value == true || value == 1
   end
 end

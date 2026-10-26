@@ -43,6 +43,15 @@ class WatchlistScorerTest < ActiveSupport::TestCase
     assert_equal "WEAK", result[:avoid_list].first[:ticker]
   end
 
+  test "does not reward stocks below moving averages" do
+    result = WatchlistScorer.build([
+      { ticker: "BELOW", nome: "Below", tipo: "stock", above_ma_50: 0, above_ma_200: 0 }
+    ])
+
+    assert_empty result[:watchlist]
+    assert_empty result[:avoid_list]
+  end
+
   test "ignores non-stock types" do
     items = [
       { ticker: "GC=F", nome: "Gold", tipo: "commodity", rsi_14: 20.0,

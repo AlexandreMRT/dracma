@@ -71,9 +71,8 @@ module SignalDetector
     volume_ratio = g.call(:volume_ratio)
     volume_spike = volume_ratio && volume_ratio >= VOLUME_SPIKE_RATIO
 
-    ma_50_above_200 = g.call(:ma_50_above_200)
-    golden_cross = ma_50_above_200 == 1
-    death_cross = ma_50_above_200 == 0
+    golden_cross = [ true, 1 ].include?(g.call(:golden_cross))
+    death_cross = [ true, 1 ].include?(g.call(:death_cross))
 
     above_50 = g.call(:above_ma_50)
     above_200 = g.call(:above_ma_200)

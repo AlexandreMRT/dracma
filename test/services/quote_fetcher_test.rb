@@ -24,4 +24,11 @@ class QuoteFetcherTest < ActiveSupport::TestCase
     assert_equal [ "BTC-USD", "PETR4.SA" ], results.map { |result| result[:ticker] }.sort
     assert_equal 1, errors
   end
+
+  test "preserves the catalog asset type for US stocks" do
+    fetcher = QuoteFetcher.new
+
+    assert_equal "us_stock", fetcher.send(:normalize_type, "us_stock")
+    assert_equal "stock", fetcher.send(:normalize_type, "stock")
+  end
 end
