@@ -648,12 +648,12 @@ module ExporterService
 
     news_coverage = data[:news_sentiment][:positive].size + data[:news_sentiment][:negative].size
     line_two = if !data[:recommendations_enabled]
-                 "Actionable recommendations disabled because data health is #{data.dig(:health, :status)}."
-               elsif news_coverage.positive?
-                 "Sentiment coverage includes #{news_coverage} assets; movers are sorted and non-overlapping for cleaner triage."
-               else
-                 "News sentiment coverage is limited today; prioritize technical and valuation factors until new headlines are ingested."
-               end
+      "Actionable recommendations disabled because data health is #{data.dig(:health, :status)}."
+    elsif news_coverage.positive?
+      "Sentiment coverage includes #{news_coverage} assets; movers are sorted and non-overlapping for cleaner triage."
+    else
+      "News sentiment coverage is limited today; prioritize technical and valuation factors until new headlines are ingested."
+    end
 
     {
       high_conviction_buys: data[:recommendations_enabled] ? high_conviction_buys.uniq.first(8) : [],
