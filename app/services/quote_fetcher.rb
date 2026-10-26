@@ -4,8 +4,9 @@
 # signals, and persists results to the database.
 # Ported from Python fetcher.py.
 class QuoteFetcher
-  def initialize
+  def initialize(provider: MarketDataProvider.default)
     @logger = Rails.logger
+    @provider = provider
     @usd_brl = nil
     @benchmarks = {}
   end
@@ -101,16 +102,20 @@ class QuoteFetcher
   end
 
   def fetch_usd_brl
-    data = YahooFinanceClient.history("USDBRL=X", range: "5d")
-    data[:quotes].last&.dig(:close) || 6.20
+    data = @provider.history("USDBRL=X", range: "5d")
+    rate = data[:quotes].last&.dig(:close)
+    raise "USD/BRL exchange rate unavailable" unless rate.to_f.positive?
+
+    rate
   rescue StandardError
-    6.20
+    @logger.warn("USD/BRL exchange rate unavailable; aborting currency conversion")
+    nil
   end
 
   def fetch_benchmarks
     result = {}
     { "^BVSP" => "ibov", "^GSPC" => "sp500" }.each do |ticker, prefix|
-      data = YahooFinanceClient.history(ticker, range: "1y")
+      data = @provider.history(ticker, range: "1y")
       quotes = data[:quotes]
       next if quotes.empty?
 
@@ -139,7 +144,7 @@ class QuoteFetcher
 
   def fetch_single(entry)
     ticker = entry[:ticker]
-    data = YahooFinanceClient.history(ticker)
+    data = @provider.history(ticker)
     quotes = data[:quotes]
     return nil if quotes.empty?
 
@@ -148,7 +153,7 @@ class QuoteFetcher
     current = latest[:close]
 
     # Fundamental data
-    fundamentals = YahooFinanceClient.info(ticker)
+    fundamentals = @provider.info(ticker)
 
     # Technical indicators
     technicals = calculate_technicals(quotes, current)
@@ -206,11 +211,13 @@ class QuoteFetcher
     case entry[:type]
     when "stock"
       price_brl = current
+      raise "USD/BRL exchange rate unavailable" unless @usd_brl&.positive?
       price_usd = current / @usd_brl
     when "currency"
       price_brl = current
       price_usd = 1.0
     else
+      raise "USD/BRL exchange rate unavailable" unless @usd_brl&.positive?
       price_usd = current
       price_brl = current * @usd_brl
     end
