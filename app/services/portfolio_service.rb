@@ -171,24 +171,57 @@ module PortfolioService
       total_current  += perf[:current_value]
     end
 
-    pnl = total_current - total_invested
-    pnl_pct = total_invested.positive? ? ((total_current / total_invested) - 1) * 100 : 0
-
-    dividends = portfolio.transactions
-                         .where(transaction_type: :dividend)
-                         .sum(:total_brl)
+    unrealized_pnl = total_current - total_invested
+    transaction_metrics = transaction_performance(portfolio)
+    realized_pnl = transaction_metrics[:realized_pnl]
+    dividends = transaction_metrics[:dividends]
+    total_pnl = unrealized_pnl + realized_pnl
+    pnl_pct = transaction_metrics[:total_contributed].positive? ? (total_pnl / transaction_metrics[:total_contributed]) * 100 : 0
 
     {
       portfolio_id: portfolio.id,
       total_invested: total_invested.round(2),
       total_current_value: total_current.round(2),
-      total_profit_loss: pnl.round(2),
+      unrealized_profit_loss: unrealized_pnl.round(2),
+      realized_profit_loss: realized_pnl.round(2),
+      total_profit_loss: total_pnl.round(2),
       total_profit_loss_pct: pnl_pct.round(2),
       dividend_income: dividends.round(2),
-      total_return: (pnl + dividends).round(2),
-      total_return_pct: total_invested.positive? ? (((pnl + dividends) / total_invested) * 100).round(2) : 0,
+      total_return: (total_pnl + dividends).round(2),
+      total_return_pct: transaction_metrics[:total_contributed].positive? ? (((total_pnl + dividends) / transaction_metrics[:total_contributed]) * 100).round(2) : 0,
+      total_contributed: transaction_metrics[:total_contributed].round(2),
       positions_count: pos_data.size,
       positions: pos_data
     }
   end
+
+  def self.transaction_performance(portfolio)
+    quantities = Hash.new(0.0)
+    cost_basis = Hash.new(0.0)
+    realized_pnl = 0.0
+    dividends = 0.0
+    total_contributed = 0.0
+
+    portfolio.transactions.order(:transaction_date, :id).each do |txn|
+      ticker = txn.ticker.upcase
+
+      case txn.transaction_type
+      when "buy"
+        quantities[ticker] += txn.quantity
+        cost_basis[ticker] += txn.total_brl
+        total_contributed += txn.total_brl
+      when "sell"
+        average_cost = quantities[ticker].positive? ? cost_basis[ticker] / quantities[ticker] : 0.0
+        realized_pnl += (txn.quantity * txn.price_brl) - txn.fees_brl - (average_cost * txn.quantity)
+        quantities[ticker] -= txn.quantity
+        cost_basis[ticker] -= average_cost * txn.quantity
+      when "dividend"
+        dividends += txn.total_brl - txn.fees_brl
+      end
+    end
+
+    { realized_pnl: realized_pnl, dividends: dividends, total_contributed: total_contributed }
+  end
+
+  private_class_method :transaction_performance
 end

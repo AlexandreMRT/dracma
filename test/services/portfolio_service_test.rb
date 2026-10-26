@@ -104,4 +104,21 @@ class PortfolioServiceTest < ActiveSupport::TestCase
     assert perf.key?(:total_invested)
     assert perf.key?(:positions)
   end
+
+  test "portfolio performance separates realized loss, unrealized loss, and dividends" do
+    new_portfolio = PortfolioService.create_portfolio(@alice, name: "Returns Test")
+    PortfolioService.add_transaction(new_portfolio, ticker: "PETR4.SA", transaction_type: "buy",
+      quantity: 10, price_brl: 30.0)
+    PortfolioService.add_transaction(new_portfolio, ticker: "PETR4.SA", transaction_type: "sell",
+      quantity: 4, price_brl: 40.0, fees_brl: 1.0)
+    PortfolioService.add_transaction(new_portfolio, ticker: "PETR4.SA", transaction_type: "dividend",
+      quantity: 1, price_brl: 5.0)
+
+    performance = PortfolioService.portfolio_performance(new_portfolio)
+
+    assert_in_delta 39.0, performance[:realized_profit_loss]
+    assert_in_delta 51.0, performance[:unrealized_profit_loss]
+    assert_in_delta 5.0, performance[:dividend_income]
+    assert_in_delta 95.0, performance[:total_return]
+  end
 end
